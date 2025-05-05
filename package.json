@@ -17,12 +17,11 @@
         "src"
     ],
     "dependencies": {
-        "bip39": "^3.1.0",
-        "bip32": "^4.0.0",
-        "tiny-secp256k1": "^2.2.3",
-        "inquirer": "^12.6.0",
         "better-sqlite3": "^11.9.1",
-        "bitcoinjs-lib": "^6.1.7"
+        "bip32": "^4.0.0",
+        "bip39": "^3.1.0",
+        "inquirer": "^12.6.0",
+        "tiny-secp256k1": "^2.2.3"
     },
     "devDependencies": {
         "@types/node": "^22.15.3",

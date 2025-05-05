@@ -3,7 +3,7 @@ import { input } from '@inquirer/prompts';
 import { aes256gcmEncode } from './aes';
 import * as fs from 'fs/promises';
 
-const filePath = "new_seed";
+const filePath = 'new_seed';
 
 async function main(): Promise<void> {
     // generate new seed

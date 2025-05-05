@@ -5,12 +5,12 @@ import { Util } from './util';
 import * as bip39 from 'bip39';
 import { BIP32Factory, BIP32Interface } from 'bip32';
 import * as ecc from 'tiny-secp256k1';
-import * as bitcoin from 'bitcoinjs-lib';
+import { Coin } from './coin/coin';
 
 const bip32 = BIP32Factory(ecc);
-const seedFilePath = "seed";
-const masterPublicFilePath = "public";
-let coinName: any;
+const seedFilePath = 'seed';
+const masterPublicFilePath = 'public';
+let coin: Coin;
 let mnemonic: string;
 
 async function getKey(): Promise<BIP32Interface> {
@@ -18,31 +18,18 @@ async function getKey(): Promise<BIP32Interface> {
     const seed = bip39.mnemonicToSeedSync(mnemonic, pass);
     const root = bip32.fromSeed(seed);
 
-    const pub = root.derivePath("m/" + Util.COIN_CONFIG[coinName]["purpose"] + "'/" + Util.COIN_CONFIG[coinName]["coin"] + "'/" + Util.COIN_CONFIG[coinName]["account"] + "'");
+    const pub = root.derivePath('m/' + coin.purpose + '\'/' + coin.coin + '\'/0\'');
     fs.writeFile(masterPublicFilePath, pub.neutered().toBase58(), 'utf8');
     return root;
 }
 
 async function searchIndex(root: BIP32Interface): Promise<void> {
     const index = await input({ message: 'Index: ', required: true, validate: Util.isInteger });
-    const child = root.derivePath("m/" + Util.COIN_CONFIG[coinName]["purpose"] + "'/" + Util.COIN_CONFIG[coinName]["coin"] + "'/" + Util.COIN_CONFIG[coinName]["account"] + "'/" + Util.COIN_CONFIG[coinName]["change"] + "/" + index);
-
-    let detail = "-----------m/" + Util.COIN_CONFIG[coinName]["purpose"] + "'/" + Util.COIN_CONFIG[coinName]["coin"] + "'/" + Util.COIN_CONFIG[coinName]["account"] + "'/" + Util.COIN_CONFIG[coinName]["change"] + "/" + index + "-------------------\n";
-
-    if (['BTC', 'LTC', 'DOGE'].includes(coinName)) {
-        detail += 'WIF: ' + child.toWIF() + '\n';
-    }
-    detail += 'Private Key: ' + child.privateKey.toString('hex') + '\n';
-    detail += 'Public Key: ' + child.publicKey.toString('hex') + '\n';
-    detail += 'Legacy Address: ' + bitcoin.payments.p2pkh({ pubkey: child.publicKey }).address + '\n';
-    detail += 'Segwit Address: ' + bitcoin.payments.p2wpkh({ pubkey: child.publicKey }).address + '\n';
-    detail += '------------------------------------------------\n';
-
-    console.log(detail);
+    coin.showDetail(root, index);
 }
 
 async function changeAccount(): Promise<BIP32Interface> {
-    coinName = await Util.chooseCoin();
+    coin = await Util.chooseCoin();
     return getKey();
 }
 
