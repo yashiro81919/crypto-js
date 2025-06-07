@@ -1,7 +1,7 @@
 import * as fs from 'fs/promises';
 import { input, select, password } from '@inquirer/prompts';
 import { aes256gcmDecode } from './aes';
-import { Util } from './util';
+import { Helper } from './helper';
 import * as bip39 from 'bip39';
 import { BIP32Factory, BIP32Interface } from 'bip32';
 import * as ecc from 'tiny-secp256k1';
@@ -12,28 +12,30 @@ const seedFilePath = 'seed';
 const masterPublicFilePath = 'public';
 let coin: Coin;
 let mnemonic: string;
+let helper: Helper;
 
 async function getKey(): Promise<BIP32Interface> {
     const pass = await password({ message: '25th word: ', mask: '*' });
     const seed = bip39.mnemonicToSeedSync(mnemonic, pass);
     const root = bip32.fromSeed(seed);
 
-    const pub = root.derivePath('m/' + coin.purpose + '\'/' + coin.coin + '\'/0\'');
+    const pub = root.derivePath('m/' + coin.purpose + '\'/' + coin.coin + '\'/' + coin.account + '\'');
     fs.writeFile(masterPublicFilePath, pub.neutered().toBase58(), 'utf8');
     return root;
 }
 
 async function searchIndex(root: BIP32Interface): Promise<void> {
-    const index = await input({ message: 'Index: ', required: true, validate: Util.isInteger });
-    coin.showDetail(root, index);
+    const index = await input({ message: 'Index: ', required: true, validate: helper.isInteger });
+    coin.showKeyInfo(root, index);
 }
 
 async function changeAccount(): Promise<BIP32Interface> {
-    coin = await Util.chooseCoin();
+    coin = await helper.chooseCoin();
     return getKey();
 }
 
 async function main(): Promise<void> {
+    helper = new Helper();
     const data = await fs.readFile(seedFilePath, 'utf8');
     const passphrase = await password({ message: 'Passphrase: ', mask: '*' });
     mnemonic = aes256gcmDecode(Buffer.from(data, 'hex'), passphrase).toString('utf8');

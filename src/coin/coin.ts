@@ -7,5 +7,7 @@ export interface Coin {
     account: string;
     change: string;
     getAddress(hash160: Buffer): string;
-    showDetail(root: BIP32Interface, index: string): void;
+    showKeyInfo(root: BIP32Interface, index: string): void;
+    showAddressDetail(xpub: BIP32Interface, accountName: string, index: string): void;
+    showUsingAddresses(xpub: BIP32Interface, accountName: string): void;
 }
