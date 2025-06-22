@@ -142,3 +142,5 @@ seed
 tx
 signed_tx
 package-lock.json
+acc.db
+public

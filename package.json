@@ -10,7 +10,7 @@
     },
     "scripts": {
         "build": "tsc",
-        "deploy": "node minify-obfuscate.js"
+        "deploy": "npm run build && node minify-obfuscate.js"
     },
     "repository": {
         "type": "git",

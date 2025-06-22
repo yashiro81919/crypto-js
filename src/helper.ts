@@ -2,6 +2,7 @@ import { select } from '@inquirer/prompts';
 import { Coin } from './coin/coin';
 import { Bitcoin } from './coin/bitcoin';
 import axios, { AxiosInstance } from 'axios';
+import { sha256 } from '@noble/hashes/sha2';
 import { Database } from 'better-sqlite3';
 import DatabaseInstance = require('better-sqlite3');
 
@@ -16,7 +17,10 @@ export class Helper {
     db: Database;
 
     constructor() {
-        this.db = new DatabaseInstance(this.DB_FILE);
+        const fs = require('fs');
+        if (fs.existsSync(this.DB_FILE)) {
+            this.db = new DatabaseInstance(this.DB_FILE);
+        }
         this.api = axios.create({
             headers: { 'Content-Type': 'application/json' }
         });
@@ -29,71 +33,16 @@ export class Helper {
         // this.coinRegistry.push(new Monero());        
     }
 
-    isInteger(value: any): boolean {
+    isFloat(value: string): boolean {
+        value = value.trim();
+        const num = Number(value);
+        return !isNaN(num) && isFinite(num);
+    }
+
+    isInteger(value: string): boolean {
+        value = value.trim();
         const num = Number(value);
         return !isNaN(num) && Number.isInteger(num);
-    }
-
-    bigIntToUint8Array(value: bigint, byteLength?: number, littleEndian = false): Uint8Array {
-        const bytes: number[] = [];
-
-        let v = value;
-        while (v > 0n) {
-            bytes.push(Number(v & 0xffn));
-            v >>= 8n;
-        }
-
-        if (byteLength) {
-            while (bytes.length < byteLength) {
-                bytes.push(0);
-            }
-        }
-
-        const result = new Uint8Array(bytes);
-        return littleEndian ? result : result.reverse();
-    }
-
-    hexTo5bitBytes(hex: string): number[] {
-        // Remove 0x prefix if present
-        if (hex.startsWith("0x")) hex = hex.slice(2);
-        if (hex.length % 2 !== 0) {
-            throw new Error("Hex string must have even number of characters");
-        }
-
-        // Convert hex string to 8-bit bytes
-        const bytes: number[] = [];
-        for (let i = 0; i < hex.length; i += 2) {
-            bytes.push(parseInt(hex.slice(i, i + 2), 16));
-        }
-
-        // Convert from 8-bit bytes to 5-bit chunks
-        const result: number[] = [];
-        let buffer = 0;
-        let bits = 0;
-
-        for (let byte of bytes) {
-            buffer = (buffer << 8) | byte;
-            bits += 8;
-
-            while (bits >= 5) {
-                result.push((buffer >> (bits - 5)) & 0b11111);
-                bits -= 5;
-            }
-        }
-
-        // Handle remaining bits (optional: pad with zeroes)
-        if (bits > 0) {
-            result.push((buffer << (5 - bits)) & 0b11111);
-        }
-
-        return result;
-    }
-
-
-    toHexString(bytes: Uint8Array): string {
-        return Array.from(bytes)
-            .map(byte => byte.toString(16).padStart(2, '0'))
-            .join('');
     }
 
     async chooseCoin(): Promise<Coin> {
@@ -145,5 +94,24 @@ export class Helper {
 
     destroy(): void {
         this.db.close();
+    }
+
+    // Double SHA-256
+    hash256(hex: string): string {
+        const firstSHA256 = sha256(Buffer.from(hex, 'hex'));
+        const secondSHA256 = sha256(firstSHA256);
+        return Buffer.from(secondSHA256).toString('hex');
+    }
+
+    // Convert numbers to big-endian and little-endian byte orders
+    hexToLE(hex: string): string {
+        if (hex.length % 2 !== 0) {
+            throw new Error('Hex string must have an even length');
+        }
+
+        const bytes = hex.match(/.{2}/g); // Split into byte pairs
+        if (!bytes) return '';
+
+        return bytes.reverse().join('');
     }
 }
