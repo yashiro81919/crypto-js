@@ -227,7 +227,7 @@ export class Bitcoin implements Coin {
             const node = bip32.fromPrivateKey(decoded.privateKey, decoded.compressed ? Buffer.alloc(32) : undefined);
 
             raw += '02'; // stackitems
-            const signature = node.sign(this.getMessageToBeSigned(version, inData, outData, seqs, sequence, locktime, input)).toString('hex');
+            const signature = Buffer.from(ecc.sign(this.getMessageToBeSigned(version, inData, outData, seqs, sequence, locktime, input), decoded.privateKey)).toString('hex');
             raw += (signature.length / 2).toString(16).padStart(2, '0'); // signature size
             raw += signature; // signature
 
