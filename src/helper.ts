@@ -114,4 +114,56 @@ export class Helper {
 
         return bytes.reverse().join('');
     }
+
+    toDER(signature: Uint8Array): Uint8Array {
+        if (signature.length !== 64) {
+            throw new Error("Invalid signature length");
+        }
+
+        const r = signature.slice(0, 32);
+        const s = signature.slice(32, 64);
+
+        function trimLeadingZeros(buf: Uint8Array) {
+            let i = 0;
+            while (i < buf.length - 1 && buf[i] === 0) i++;
+            return buf.slice(i);
+        }
+
+        function toPositive(buf) {
+            if (buf[0] & 0x80) {
+            return Buffer.concat([Buffer.from([0x00]), buf]);
+            }
+            return buf;
+        }
+
+        const rTrimmed = toPositive(trimLeadingZeros(r));
+        const sTrimmed = toPositive(trimLeadingZeros(s));
+
+        const rLen = rTrimmed.length;
+        const sLen = sTrimmed.length;
+
+        const totalLen = 2 + rLen + 2 + sLen;
+
+        return Buffer.concat([
+            Buffer.from([0x30, totalLen]),
+            Buffer.from([0x02, rLen]),
+            rTrimmed,
+            Buffer.from([0x02, sLen]),
+            sTrimmed,
+        ]);
+    }
+
+    getCompactSize(i: number): string {
+        // convert integer to a hex string with the correct prefix depending on the size of the integer
+        if (i <= 252) {
+            return this.hexToLE(i.toString(16).padStart(2, '0'));
+        } else if (i > 252 && i <= 65535) {
+            return 'fd' + this.hexToLE(i.toString(16).padStart(4, '0'));
+        } else if (i > 65535 && i <= 4294967295) {
+            return 'fe' + this.hexToLE(i.toString(16).padStart(8, '0'));
+        } else if (i > 4294967295 && i <= 18446744073709551615n) {
+            return 'fe' + this.hexToLE(i.toString(16).padStart(16, '0'));
+        }
+        return null;
+    }
 }
