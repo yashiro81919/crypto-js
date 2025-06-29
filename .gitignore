@@ -139,8 +139,8 @@ dist
 .vscode
 new_seed
 seed
-tx
-signed_tx
+tx*
+signed_tx*
 package-lock.json
 acc.db
 public

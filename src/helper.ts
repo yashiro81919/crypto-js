@@ -1,10 +1,11 @@
 import { select } from '@inquirer/prompts';
-import { Coin } from './coin/coin';
-import { Bitcoin } from './coin/bitcoin';
 import axios, { AxiosInstance } from 'axios';
 import { sha256 } from '@noble/hashes/sha2';
 import { Database } from 'better-sqlite3';
 import DatabaseInstance = require('better-sqlite3');
+import { Coin } from './coin/coin';
+import { Bitcoin } from './coin/bitcoin';
+import { BitcoinSV } from './coin/bitcoin-sv';
 
 export class Helper {
 
@@ -22,15 +23,12 @@ export class Helper {
             this.db = new DatabaseInstance(this.DB_FILE);
         }
         this.api = axios.create({
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 'Content-Type': 'application/json' },
+            validateStatus: () => true
         });
+
         this.coinRegistry.push(new Bitcoin(this));
-        // this.coinRegistry.push(new Litecoin());
-        // this.coinRegistry.push(new Dogecoin());
-        // this.coinRegistry.push(new BitcoinCash());
-        // this.coinRegistry.push(new BitcoinSV());
-        // this.coinRegistry.push(new Tron());
-        // this.coinRegistry.push(new Monero());        
+        this.coinRegistry.push(new BitcoinSV(this));
     }
 
     isFloat(value: string): boolean {
@@ -92,6 +90,10 @@ export class Helper {
         }
     }
 
+    validateAmount(value: string, remainAmt: number): boolean {
+        return this.isFloat(value) && Number(value) <= remainAmt;
+    }
+
     destroy(): void {
         this.db.close();
     }
@@ -115,6 +117,7 @@ export class Helper {
         return bytes.reverse().join('');
     }
 
+    // Convert raw signature to DER encoded signature
     toDER(signature: Uint8Array): Uint8Array {
         if (signature.length !== 64) {
             throw new Error("Invalid signature length");
@@ -131,7 +134,7 @@ export class Helper {
 
         function toPositive(buf) {
             if (buf[0] & 0x80) {
-            return Buffer.concat([Buffer.from([0x00]), buf]);
+                return Buffer.concat([Buffer.from([0x00]), buf]);
             }
             return buf;
         }
@@ -153,6 +156,7 @@ export class Helper {
         ]);
     }
 
+    // Convert to compact size of a number
     getCompactSize(i: number): string {
         // convert integer to a hex string with the correct prefix depending on the size of the integer
         if (i <= 252) {
@@ -162,8 +166,31 @@ export class Helper {
         } else if (i > 65535 && i <= 4294967295) {
             return 'fe' + this.hexToLE(i.toString(16).padStart(8, '0'));
         } else if (i > 4294967295 && i <= 18446744073709551615n) {
-            return 'fe' + this.hexToLE(i.toString(16).padStart(16, '0'));
+            return 'ff' + this.hexToLE(i.toString(16).padStart(16, '0'));
         }
         return null;
+    }
+
+    // Convert big int value to uint8array
+    bigintToUint8Array(bn: bigint): Uint8Array {
+        const bytes: number[] = [];
+
+        let v = bn;
+        while (v > 0n) {
+            bytes.push(Number(v & 0xffn));
+            v >>= 8n;
+        }
+
+        const result = new Uint8Array(bytes);
+        return result.reverse();
+    }
+
+    // Convert uint8array to big int value
+    uint8ArrayToBigInt(bytes: Uint8Array): bigint {
+        let result = 0n;
+        for (const byte of bytes) {
+            result = (result << 8n) + BigInt(byte);
+        }
+        return result;
     }
 }

@@ -43,7 +43,7 @@ export class Bitcoin implements Coin {
 
         const addr = await this.getAddr(address);
 
-        console.log('|' + index + '|' + address + '|' + addr.balance + '|' + addr.spentFlag);
+        console.log('|' + index + '|' + address + '|' + (addr.balance / 100000000) + '|' + addr.spentFlag);
 
         const utxos = await this.getUtxos(address);
         utxos.forEach(utxo => console.log(utxo));
@@ -61,13 +61,13 @@ export class Bitcoin implements Coin {
 
             const addr = await this.getAddr(address);
 
-            console.log('|' + a.idx + '|' + address + '|' + addr.balance + '|' + addr.spentFlag);
+            console.log('|' + a.idx + '|' + address + '|' + (addr.balance / 100000000) + '|' + addr.spentFlag);
             total += addr.balance;
 
             this.helper.updateDb(accountName, a.idx, addr.balance + addr.unBalance);
         }
 
-        console.log('Total Balance:' + total);
+        console.log('Total Balance:' + (total / 100000000));
     }
 
     async createTx(): Promise<void> {
@@ -103,7 +103,7 @@ export class Bitcoin implements Coin {
         while (true) {
             const remainAmt = totalInput - totalOutput;
             const addr = await input({ message: 'Type output address: ', required: true });
-            const balance = await input({ message: 'Type amount: ', required: true, default: (remainAmt / 100000000).toString(), validate: (value) => { return this.validateAmount(value, remainAmt); } });
+            const balance = await input({ message: 'Type amount: ', required: true, default: (remainAmt / 100000000).toString(), validate: (value) => { return this.helper.validateAmount(value, remainAmt); } });
 
             const realBal = Math.round(Number(balance) * 100000000);
             totalOutput += realBal;
@@ -172,7 +172,7 @@ export class Bitcoin implements Coin {
         const fee = Math.ceil(vSize * tx['fee']); // calculated fee
 
         console.log('----------------------------------');
-        console.log('calculated fee: ' + fee + ' sats');
+        console.log('calculated fee: ' + fee + ' ' + this.unit);
         console.log('vSize: ' + vSize + ' vbytes');
         console.log('----------------------------------');        
 
@@ -192,7 +192,7 @@ export class Bitcoin implements Coin {
 
         let raw = '';
 
-        const version = '01000000';
+        const version = '02000000';
         const locktime = '00000000';
 
         raw += version; // version
@@ -202,14 +202,14 @@ export class Bitcoin implements Coin {
         raw += this.helper.getCompactSize(tx['inputs'].length); // inputcount
         let inData = '';
         let seqs = '';
-        const sequence = 'fdffffff';
+        const sequence = 'fdffffff'; // sequence, enable RBF
         for (const input of tx['inputs']) {
             const txId = this.helper.hexToLE(input['txid']); // txid, must be Reverse Byte Order
             const vout = this.helper.hexToLE(input['vout'].toString(16).padStart(8, '0')); // vout
 
             raw += txId + vout;
             raw += '00'; // scriptsig size, segwit should be 0
-            raw += sequence; // sequence, enable RBF
+            raw += sequence;
             
             inData += txId + vout;
             seqs += sequence;
@@ -219,14 +219,10 @@ export class Bitcoin implements Coin {
         raw += this.helper.getCompactSize(tx['outputs'].length); // outputcount
         let outData = '';
         for (const output of tx['outputs']) {
-            const scriptPubkey = '0014' + this.getHash160Sigwit(output['address']); // scriptpubkey
+            const scriptPubkey = `0014${this.getHash160Sigwit(output['address'])}`; // scriptpubkey
             const keySize = this.helper.getCompactSize(scriptPubkey.length / 2); // scriptpubkeysize
-            let amount = this.helper.hexToLE(output['amount'].toString(16).padStart(16, '0')); // amount
-
-            // if change=ture, this amount will deduct network fee
-            if (output['change']) {
-                amount = this.helper.hexToLE((output['amount'] - fee).toString(16).padStart(16, '0'));
-            }
+            const finalAmt = output['change'] ? output['amount'] - fee : output['amount']; // output with change flag will deduct network fee
+            let amount = this.helper.hexToLE(finalAmt.toString(16).padStart(16, '0')); // amount
 
             outData += amount + keySize + scriptPubkey;
             raw += amount + keySize + scriptPubkey;
@@ -239,7 +235,7 @@ export class Bitcoin implements Coin {
             const node = bip32.fromPrivateKey(decoded.privateKey, decoded.compressed ? Buffer.alloc(32) : undefined);
 
             raw += '02'; // stackitems
-            const rawSignature  = node.sign(this.getMessageToBeSigned(version, inData, outData, seqs, sequence, locktime, input), true);
+            const rawSignature = node.sign(this.getPreimage(version, inData, outData, seqs, sequence, locktime, input), true);
             const signature = Buffer.from(this.helper.toDER(rawSignature)).toString('hex') + '01'; // DER Sign + SIGHASH_ALL (0x01)
             raw += this.helper.getCompactSize(signature.length / 2); // signature size
             raw += signature; // signature
@@ -252,10 +248,6 @@ export class Bitcoin implements Coin {
         raw += locktime; // locktime
 
         fs.writeFile(this.signFile, raw, 'utf8');
-    }
-
-    private validateAmount(value: string, remainAmt: number): boolean {
-        return this.helper.isFloat(value) && Number(value) <= remainAmt;
     }
 
     private async getAddr(address: string): Promise<any> {
@@ -296,7 +288,7 @@ export class Bitcoin implements Coin {
         return Buffer.from(data).toString('hex');
     }
 
-    private getMessageToBeSigned(version: string, inData: string, outData: string,
+    private getPreimage(version: string, inData: string, outData: string,
          seqs: string, sequence: string, locktime: string, input: any[]): Buffer<ArrayBuffer> {
         let preimage = '';
         // Grab the version field
@@ -336,4 +328,99 @@ export class Bitcoin implements Coin {
         vSize += 4; // locktime
         return vSize;
     }
+
+    // async sign(): Promise<void> {
+    //     const bip32 = BIP32Factory(ecc);
+    //     const data = await fs.readFile(this.txFile, 'utf8');
+    //     const tx = JSON.parse(data);
+    //     const size = this.calcSize(tx);
+    //     const fee = Math.ceil(size * tx['fee']); // calculated fee
+
+    //     console.log('----------------------------------');
+    //     console.log('calculated fee: ' + fee + ' ' + this.unit);
+    //     console.log('size: ' + size + ' bytes');
+    //     console.log('----------------------------------');
+
+    //     // loop all input and get all addresses
+    //     // remove duplicate addresses
+    //     const addresses = new Set<string>();
+    //     for (const addr of tx['inputs']) {
+    //         addresses.add(addr['address']);
+    //     }
+
+    //     // collect pk and associated to address
+    //     const keyMap = new Map<string, string>();
+    //     for (const address of addresses) {
+    //         const pk = await input({ message: `Type WIF private key for address [${address}]: `, required: true });
+    //         keyMap.set(address, pk);
+    //     }
+
+    //     let raw = '';
+
+    //     const version = '02000000';
+    //     const locktime = '00000000';
+
+    //     raw += version; // version
+
+    //     raw += this.helper.getCompactSize(tx['inputs'].length); // inputcount
+    //     const sequence = 'fdffffff'; // sequence, enable RBF
+    //     for (const input of tx['inputs']) {
+    //         const txId = this.helper.hexToLE(input['txid']); // txid, must be Reverse Byte Order
+    //         const vout = this.helper.hexToLE(input['vout'].toString(16).padStart(8, '0')); // vout
+
+    //         raw += txId + vout;
+    //         raw += `{${input['txid']}}`; // scriptsig size and scriptsig, set placeholder here
+    //         raw += sequence;
+    //     }
+
+    //     raw += this.helper.getCompactSize(tx['outputs'].length); // outputcount
+    //     for (const output of tx['outputs']) {
+    //         const scriptPubkey = `76a914${this.getHash160Legacy(output['address'])}88ac`;; // scriptpubkey
+    //         const keySize = this.helper.getCompactSize(scriptPubkey.length / 2); // scriptpubkeysize
+    //         const finalAmt = output['change'] ? output['amount'] - fee : output['amount']; // output with change flag will deduct network fee
+    //         let amount = this.helper.hexToLE(finalAmt.toString(16).padStart(16, '0')); // amount
+
+    //         raw += amount + keySize + scriptPubkey;
+    //     }
+
+    //     raw += locktime; // locktime
+
+    //     // calculate and update signature part of tx
+    //     const preimage = raw; // clone the current raw string
+    //     for (const input of tx['inputs']) {
+    //         const wifKey = keyMap.get(input['address']);
+    //         const decoded = wif.decode(wifKey);
+    //         const node = bip32.fromPrivateKey(decoded.privateKey, decoded.compressed ? Buffer.alloc(32) : undefined);
+
+    //         const rawSignature = node.sign(this.getMessageToBeSigned(preimage, input), true);
+    //         const signature = Buffer.from(this.helper.toDER(rawSignature)).toString('hex') + '01'; // DER Sign + SIGHASH_ALL (0x01)
+    //         const sigSize = this.helper.getCompactSize(signature.length / 2); // signature size
+
+    //         const publicKey = node.publicKey.toString('hex');
+    //         const publicKeySize = this.helper.getCompactSize(publicKey.length / 2); // publicKey size
+
+    //         const scriptSig = sigSize + signature + publicKeySize + publicKey;
+    //         const scriptSigSize = this.helper.getCompactSize(scriptSig.length / 2);
+
+    //         raw = raw.replace(`{${input['txid']}}`, scriptSigSize + scriptSig);
+    //     }
+
+    //     fs.writeFile(this.signFile, raw, 'utf8');
+    // }    
+
+    // private getPreimageLagacy(preimage: string, input: any[]): Buffer<ArrayBuffer> {
+    //     const scriptSig = `1976a914${this.getHash160Legacy(input['address'])}88ac`;
+    //     const scriptSigSize = this.helper.getCompactSize(scriptSig.length / 2);
+
+    //     // put the ScriptPubKey from the output we want to spend into the ScriptSig of our input
+    //     preimage = preimage.replace(`{${input['txid']}}`, scriptSigSize + scriptSig);
+    //     // Remove existing ScriptSigs for other inputs
+    //     preimage = preimage.replace(/\{[^}]*\}/g, "00"); 
+    //     // Add signature hash type to the end of the hash preimage
+    //     preimage += '01000000'; // SIGHASH_ALL
+    //     // Hash the preimage
+    //     preimage = this.helper.hash256(preimage);
+
+    //     return Buffer.from(preimage, 'hex');
+    // }  
 }

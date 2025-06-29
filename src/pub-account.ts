@@ -46,7 +46,7 @@ async function main(): Promise<void> {
         });
 
         if (step === 0) {
-            coin.showUsingAddresses(xpub, accountName);
+            await coin.showUsingAddresses(xpub, accountName);
         } else if (step === 1) {
             const index = await input({ message: 'Index: ', required: true, validate: helper.isInteger });
             await coin.showAddressDetail(xpub, accountName, index);
