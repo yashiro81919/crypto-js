@@ -31,7 +31,7 @@ export class Bitcoin implements Coin {
         detail += 'WIF: ' + child.toWIF() + '\n';
         detail += 'Private Key: ' + child.privateKey.toString('hex') + '\n';
         detail += 'Public Key: ' + child.publicKey.toString('hex') + '\n';
-        detail += 'Segwit Address: ' + this.getAddress(child.identifier) + '\n';
+        detail += 'Segwit Address: ' + this.getSigwitAddress(child.identifier) + '\n';
         detail += '------------------------------------------------\n';
 
         console.log(detail);
@@ -39,7 +39,7 @@ export class Bitcoin implements Coin {
 
     async showAddressDetail(xpub: BIP32Interface, accountName: string, index: string): Promise<void> {
         const ck = xpub.derivePath(String(this.account) + '/' + index);
-        const address = this.getAddress(ck.identifier);
+        const address = this.getSigwitAddress(ck.identifier);
 
         const addr = await this.getAddr(address);
 
@@ -57,7 +57,7 @@ export class Bitcoin implements Coin {
 
         for (const a of using_addrs) {
             const ck = xpub.derivePath(String(this.account) + '/' + a.idx);
-            const address = this.getAddress(ck.identifier);
+            const address = this.getSigwitAddress(ck.identifier);
 
             const addr = await this.getAddr(address);
 
@@ -129,7 +129,7 @@ export class Bitcoin implements Coin {
         inputAddrs.forEach(addr => console.log('input addr: ' + addr.address + '|' + addr.balance / 100000000));
         outputAddrs.forEach(addr => console.log('output addr: ' + addr.address + '|' + addr.balance / 100000000));
         if (changeAddr) {
-            console.log('change addr: ' + changeAddr.address + '|' + changeAddr.balance);
+            console.log('change addr: ' + changeAddr.address + '|' + changeAddr.balance / 100000000);
         }
 
         console.log('----------------------------------');
@@ -168,6 +168,13 @@ export class Bitcoin implements Coin {
         const bip32 = BIP32Factory(ecc);
         const data = await fs.readFile(this.txFile, 'utf8');
         const tx = JSON.parse(data);
+        const vSize = this.calcVSize(tx);
+        const fee = Math.ceil(vSize * tx['fee']); // calculated fee
+
+        console.log('----------------------------------');
+        console.log('calculated fee: ' + fee + ' sats');
+        console.log('vSize: ' + vSize + ' vbytes');
+        console.log('----------------------------------');        
 
         // loop all input and get all addresses
         // remove duplicate addresses
@@ -185,19 +192,19 @@ export class Bitcoin implements Coin {
 
         let raw = '';
 
-        const version = '02000000';
+        const version = '01000000';
         const locktime = '00000000';
 
         raw += version; // version
         raw += '00'; // marker
         raw += '01'; // flag
 
-        raw += tx['inputs'].length.toString(16).padStart(2, '0'); // inputcount
+        raw += this.helper.getCompactSize(tx['inputs'].length); // inputcount
         let inData = '';
         let seqs = '';
         const sequence = 'fdffffff';
         for (const input of tx['inputs']) {
-            const txId = input['txid']; // txid
+            const txId = this.helper.hexToLE(input['txid']); // txid, must be Reverse Byte Order
             const vout = this.helper.hexToLE(input['vout'].toString(16).padStart(8, '0')); // vout
 
             raw += txId + vout;
@@ -209,12 +216,17 @@ export class Bitcoin implements Coin {
             input['txid-vout'] = txId + vout; // add a new property txid + vout
         }
 
-        raw += tx['outputs'].length.toString(16).padStart(2, '0'); // outputcount
+        raw += this.helper.getCompactSize(tx['outputs'].length); // outputcount
         let outData = '';
         for (const output of tx['outputs']) {
-            const scriptPubkey = '0014' + this.getHash160(output['address']); // scriptpubkeysize
-            const keySize = (scriptPubkey.length / 2).toString(16).padStart(2, '0'); // scriptpubkeysize
-            const amount = this.helper.hexToLE(output['amount'].toString(16).padStart(16, '0')); // amount
+            const scriptPubkey = '0014' + this.getHash160Sigwit(output['address']); // scriptpubkey
+            const keySize = this.helper.getCompactSize(scriptPubkey.length / 2); // scriptpubkeysize
+            let amount = this.helper.hexToLE(output['amount'].toString(16).padStart(16, '0')); // amount
+
+            // if change=ture, this amount will deduct network fee
+            if (output['change']) {
+                amount = this.helper.hexToLE((output['amount'] - fee).toString(16).padStart(16, '0'));
+            }
 
             outData += amount + keySize + scriptPubkey;
             raw += amount + keySize + scriptPubkey;
@@ -227,12 +239,13 @@ export class Bitcoin implements Coin {
             const node = bip32.fromPrivateKey(decoded.privateKey, decoded.compressed ? Buffer.alloc(32) : undefined);
 
             raw += '02'; // stackitems
-            const signature = node.sign(this.getMessageToBeSigned(version, inData, outData, seqs, sequence, locktime, input)).toString('hex');
-            raw += (signature.length / 2).toString(16).padStart(2, '0'); // signature size
+            const rawSignature  = node.sign(this.getMessageToBeSigned(version, inData, outData, seqs, sequence, locktime, input), true);
+            const signature = Buffer.from(this.helper.toDER(rawSignature)).toString('hex') + '01'; // DER Sign + SIGHASH_ALL (0x01)
+            raw += this.helper.getCompactSize(signature.length / 2); // signature size
             raw += signature; // signature
 
             const publicKey = node.publicKey.toString('hex');
-            raw += (publicKey.length / 2).toString(16).padStart(2, '0'); // publicKey size
+            raw += this.helper.getCompactSize(publicKey.length / 2); // publicKey size
             raw += publicKey; // publicKey
         }
 
@@ -268,16 +281,16 @@ export class Bitcoin implements Coin {
     private async getFee(): Promise<number> {
         const resp = await this.helper.api.get(`https://mempool.space/api/v1/fees/recommended`);
         return resp.data['fastestFee'];
-    }
+    }  
 
-    private getAddress(hash160: Buffer): string {
+    private getSigwitAddress(hash160: Buffer): string {
         const witnessVersion = 0;
         const words = [witnessVersion, ...bech32.toWords(hash160)];
         const hrp = 'bc';
         return bech32.encode(hrp, words);
     }
     
-    private getHash160(address: `bc1${string}`): string {
+    private getHash160Sigwit(address: `bc1${string}`): string {
         const decoded = bech32.decode(address);
         const data = bech32.fromWords(decoded.words.slice(1));
         return Buffer.from(data).toString('hex');
@@ -295,10 +308,10 @@ export class Bitcoin implements Coin {
         // Serialize the TXID and VOUT for the input we're signing
         preimage += input['txid-vout'];
         // Create a scriptcode for the input we're signing
-        const scriptPubkey = this.getHash160(input['address']);
+        const scriptPubkey = this.getHash160Sigwit(input['address']);
         preimage += `1976a914${scriptPubkey}88ac`;
         // Find the input amount
-        preimage += this.helper.hexToLE(input['txid-vout'].toString(16).padStart(16, '0'));
+        preimage += this.helper.hexToLE(input['value'].toString(16).padStart(16, '0'));
         // Grab the sequence for the input we're signing
         preimage += sequence;
         // Serialize and hash all the outputs
@@ -311,5 +324,16 @@ export class Bitcoin implements Coin {
         preimage = this.helper.hash256(preimage);
 
         return Buffer.from(preimage, 'hex');
+    }
+
+    private calcVSize(tx : any): number {
+        let vSize = 4 + 2 * 0.25; // Version + (Marker + Flag) * 0.25
+        const inputTotal = this.helper.getCompactSize(tx['inputs'].length); 
+        vSize += tx['inputs'].length * ((inputTotal.length / 2) + 32 + 4 + 1 + 4);
+        const outputTotal = this.helper.getCompactSize(tx['outputs'].length); 
+        vSize += tx['outputs'].length * ((outputTotal.length / 2) + 8 + 1 + 22);
+        vSize += tx['outputs'].length * (1 + 1 + 72 + 1 + 33) * 0.25; // witness
+        vSize += 4; // locktime
+        return vSize;
     }
 }
