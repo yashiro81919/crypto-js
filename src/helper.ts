@@ -6,6 +6,7 @@ import DatabaseInstance = require('better-sqlite3');
 import { Coin } from './coin/coin';
 import { Bitcoin } from './coin/bitcoin';
 import { BitcoinSV } from './coin/bitcoin-sv';
+import { BitcoinCash } from './coin/bitcoin-cash';
 
 export class Helper {
 
@@ -29,6 +30,7 @@ export class Helper {
 
         this.coinRegistry.push(new Bitcoin(this));
         this.coinRegistry.push(new BitcoinSV(this));
+        this.coinRegistry.push(new BitcoinCash(this));
     }
 
     isFloat(value: string): boolean {

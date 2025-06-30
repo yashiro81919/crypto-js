@@ -276,10 +276,7 @@ export class BitcoinSV implements Coin {
     }
     
     private async getFee(): Promise<number> {
-        const to = Math.floor(Date.now() / 1000);
-        const from = to - 3600; // calculate average fee in 1 hour
-        const resp = await this.helper.api.get(`https://api.whatsonchain.com/v1/bsv/main/miner/fees?from=${from}&to=${to}`);
-        return resp.data[0]['min_fee_rate'] / 1000;
+        return 1;
     }
 
     private getLegacyAddress(hash160: Buffer): string {
