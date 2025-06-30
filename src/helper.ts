@@ -195,4 +195,9 @@ export class Helper {
         }
         return result;
     }
+
+    // format output with color
+    print(color: string, text: string): void {
+        console.log(color + text + '\x1b[0m');
+    }
 }

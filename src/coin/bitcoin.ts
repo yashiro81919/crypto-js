@@ -18,6 +18,7 @@ export class Bitcoin implements Coin {
     private unit = 'sat/vB';
     private txFile = 'tx';
     private signFile = 'signed_tx';
+    private color = '\x1b[38;5;214m';
 
     constructor(helper: Helper) {
         this.helper = helper;
@@ -34,7 +35,7 @@ export class Bitcoin implements Coin {
         detail += 'Segwit Address: ' + this.getSigwitAddress(child.identifier) + '\n';
         detail += '------------------------------------------------\n';
 
-        console.log(detail);
+        this.helper.print(this.color, detail);
     }
 
     async showAddressDetail(xpub: BIP32Interface, accountName: string, index: string): Promise<void> {
@@ -42,8 +43,7 @@ export class Bitcoin implements Coin {
         const address = this.getSigwitAddress(ck.identifier);
 
         const addr = await this.getAddr(address);
-
-        console.log('|' + index + '|' + address + '|' + (addr.balance / 100000000) + '|' + addr.spentFlag);
+        this.helper.print(this.color, '|' + index + '|' + address + '|' + (addr.balance / 100000000) + '|' + addr.spentFlag);
 
         const utxos = await this.getUtxos(address);
         utxos.forEach(utxo => console.log(utxo));
@@ -60,8 +60,7 @@ export class Bitcoin implements Coin {
             const address = this.getSigwitAddress(ck.identifier);
 
             const addr = await this.getAddr(address);
-
-            console.log('|' + a.idx + '|' + address + '|' + (addr.balance / 100000000) + '|' + addr.spentFlag);
+            this.helper.print(this.color, '|' + a.idx + '|' + address + '|' + (addr.balance / 100000000) + '|' + addr.spentFlag);
             total += addr.balance;
 
             this.helper.updateDb(accountName, a.idx, addr.balance + addr.unBalance);
