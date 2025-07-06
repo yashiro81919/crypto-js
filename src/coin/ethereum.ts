@@ -87,12 +87,12 @@ export class Ethereum implements Coin {
 
     async createTx(): Promise<void> {
         // calculate network fees
-        const feeObj = await this.getFee();
-        let feeGw = feeObj.gasFee;
-        const baseGw = feeObj.baseFee;
+        let feeW = await this.getFee();
+        let feeGw = feeW / this.gWei;
 
         const newFee = await input({ message: `Type new fee if you want to change (${this.unit}): `, default: feeGw.toString(), validate: this.helper.isFloat });
         feeGw = Number(newFee);
+        feeW = (feeGw * this.wei) / this.gWei;
 
         // choose transfer type
         const type = await select({
@@ -140,7 +140,6 @@ export class Ethereum implements Coin {
 
         console.log('----------------------------------');
         console.log(`transaction fee: ${feeGw} ${this.unit}`);
-        console.log(`base fee: ${baseGw} ${this.unit}`);
         console.log('----------------------------------');
         console.log(`transfer ${type === 0 ? 'Ethereum: ' : `ERC20 token ${token}: `} ${balance}`);
         console.log(`input addr: ${inObj.address}`);
@@ -149,7 +148,7 @@ export class Ethereum implements Coin {
 
         const status = await confirm({ message: 'Continue to create transaction: ' });
         if (status) {
-            const tx = { fee: feeGw, baseFee: baseGw, nonce: nonce, type: type, token: token, input: inputAddr, output: outputAddr, amount: outBalance };
+            const tx = { fee: feeW, nonce: nonce, type: type, token: token, input: inputAddr, output: outputAddr, balance: inBalance, amount: outBalance };
             fs.writeFile(this.txFile, JSON.stringify(tx), 'utf8');
         }
     }
@@ -158,10 +157,10 @@ export class Ethereum implements Coin {
         const data = await fs.readFile(this.txFile, 'utf8');
         const tx = JSON.parse(data);
         const gas = this.calcGas(tx);
-        const fee = Math.ceil(gas * tx['fee']); // calculated fee
+        const feeW = gas * tx['fee'];
 
         console.log('----------------------------------');
-        console.log(`calculated fee: ${fee / this.gWei} ${this.code}`);
+        console.log(`calculated network fee: ${feeW / this.wei} ${this.code}`);
         console.log(`gas: ${gas}`);
         console.log('----------------------------------');
 
@@ -172,7 +171,8 @@ export class Ethereum implements Coin {
         let txData: Uint8Array;
         if (tx['type'] === 0) {
             to = this.helper.strip0x(tx['output']);
-            value = tx['amount'];
+            const surplus = tx['amount'] + feeW - tx['balance'];
+            value = surplus > 0 ? tx['amount'] - surplus : tx['amount'];
             txData = new Uint8Array([]);
         } else {
             to = this.helper.strip0x(this.erc20Tokens.find(t => t.name === tx['token']).address);
@@ -183,8 +183,8 @@ export class Ethereum implements Coin {
         const unsignedTx = [
             1n, // chainId
             tx['nonce'],  // nonce
-            tx['fee'] * this.gWei, // maxPriorityFeePerGas
-            (tx['fee'] + tx['baseFee']) * this.gWei, // maxFeePerGas
+            tx['fee'] , // maxPriorityFeePerGas
+            tx['fee'] , // maxFeePerGas
             gas,  // gasLimit
             hexToBytes(to), // to address
             value,  // value
@@ -219,7 +219,7 @@ export class Ethereum implements Coin {
     }
 
     private async getAddr(address: string): Promise<any> {
-        let resp = await this.helper.api.get(`https://api.blockcypher.com/v1/eth/main/addrs/${address}/full`);
+        const resp = await this.helper.api.get(`https://api.blockcypher.com/v1/eth/main/addrs/${address}/full`);
         const balance = resp.data['balance'];
         const unBalance = resp.data['unconfirmed_balance'];
         const nonce = resp.data['nonce'];
@@ -235,9 +235,9 @@ export class Ethereum implements Coin {
         return tokens;
     }
 
-    private async getFee(): Promise<any> {
-        let resp = await this.helper.api.get(`https://api.blockcypher.com/v1/eth/main`);
-        return { gasFee: resp.data['high_priority_fee'] / this.gWei, baseFee: resp.data['base_fee'] / this.gWei };
+    private async getFee(): Promise<number> {
+        const resp = await this.helper.api.get(`https://api.blockcypher.com/v1/eth/main`);
+        return resp.data['high_priority_fee'];
     }
 
     private getEthereumAddress(publicKey: Uint8Array): string {
@@ -254,13 +254,13 @@ export class Ethereum implements Coin {
             size = 21000;
         } else {
             // ERC20 transfer
-            size = 60000;
+            size = 100000;
         }
         return size;
     }
 
     private encodeERC20Transfer(to: string, amount: bigint): string {
-        const methodId = 'a9059cbb';
+        const methodId = 'a9059cbb'; // (first 4 bytes of keccak256("transfer(address,uint256)"))
         const toClean = this.helper.strip0x(to).toLowerCase();
         const paddedTo = toClean.padStart(64, '0');
         const paddedAmount = amount.toString(16).padStart(64, '0');

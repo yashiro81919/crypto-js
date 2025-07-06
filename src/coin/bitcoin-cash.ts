@@ -255,7 +255,7 @@ export class BitcoinCash implements Coin {
     }
 
     private async getAddr(address: string): Promise<any> {
-        let resp = await this.helper.api.get(`https://api.fullstack.cash/v5/electrumx/balance/${address}`);
+        const resp = await this.helper.api.get(`https://api.fullstack.cash/v5/electrumx/balance/${address}`);
         const balance = resp.data['balance']['confirmed'];
         const unBalance = resp.data['balance']['unconfirmed'];
 
