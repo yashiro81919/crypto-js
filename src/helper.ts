@@ -1,36 +1,68 @@
 import { select } from '@inquirer/prompts';
-import axios, { AxiosInstance } from 'axios';
+import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { sha256 } from '@noble/hashes/sha2';
+import { hexToBytes, bytesToHex } from '@noble/hashes/utils';
 import { Database } from 'better-sqlite3';
 import DatabaseInstance = require('better-sqlite3');
+import { SocksProxyAgent } from 'socks-proxy-agent';
+import { aes256gcmDecode } from './aes';
 import { Coin } from './coin/coin';
 import { Bitcoin } from './coin/bitcoin';
 import { BitcoinSV } from './coin/bitcoin-sv';
 import { BitcoinCash } from './coin/bitcoin-cash';
+import { Ethereum } from './coin/ethereum';
 
 export class Helper {
 
     api: AxiosInstance;
-
     coinRegistry: Coin[] = [];
-
     DB_FILE = 'acc.db';
-
     db: Database;
+    online: boolean;
 
-    constructor() {
-        const fs = require('fs');
-        if (fs.existsSync(this.DB_FILE)) {
-            this.db = new DatabaseInstance(this.DB_FILE);
+    // secp256k1 constants
+    P = BigInt('0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f');
+    A = BigInt(0);
+    B = BigInt(7);
+
+    constructor(online: boolean) {
+        this.online = online;
+        if (online) { // online mode will initialize db and network connection
+            // init db
+            const fs = require('fs');
+            if (fs.existsSync(this.DB_FILE)) {
+                this.db = new DatabaseInstance(this.DB_FILE);
+            }
+            // init network
+            this.initNetwork();
         }
-        this.api = axios.create({
-            headers: { 'Content-Type': 'application/json' },
-            validateStatus: () => true
-        });
 
         this.coinRegistry.push(new Bitcoin(this));
         this.coinRegistry.push(new BitcoinSV(this));
         this.coinRegistry.push(new BitcoinCash(this));
+        this.coinRegistry.push(new Ethereum(this));
+    }
+
+    async initNetwork(): Promise<void> {
+        const config: AxiosRequestConfig = {};
+        config.headers = { 'Content-Type': 'application/json' };
+        config.validateStatus = () => true;
+        try {
+            const url = 'www.google.com';
+            const response = await fetch(url, { method: 'HEAD', mode: 'no-cors' });
+            // For 'no-cors' mode, we can't inspect the response status directly,
+            // but a successful fetch indicates a connection.
+            // If you can use 'cors' mode, you can check response.ok or response.status.
+            this.api = axios.create(config);
+        } catch (error) {
+            // this is used when testing with GFW. a lot of websites are blocked.
+            // need a socks5 proxy server to bypass the GFW.
+            const proxy = 'socks5h://127.0.0.1:1080';
+            const agent = new SocksProxyAgent(proxy);
+            config.httpAgent = agent;
+            config.httpsAgent = agent;
+            this.api = axios.create(config);
+        }
     }
 
     isFloat(value: string): boolean {
@@ -64,6 +96,12 @@ export class Helper {
 
     getCoinInstance(coinName: string): Coin {
         return this.coinRegistry.find(c => c.code === coinName);
+    }
+
+    getAPIKey(name: string): string {
+        const stmt = this.db.prepare('select * from t_apikey where name = ?');
+        const row: any = stmt.get(name);
+        return aes256gcmDecode(Buffer.from(row.key, 'hex'), name).toString('utf8');
     }
 
     getAllAccounts(): any {
@@ -199,5 +237,56 @@ export class Helper {
     // format output with color
     print(color: string, text: string): void {
         console.log(color + text + '\x1b[0m');
+    }
+
+    // modular exponentiation: a^b mod m
+    modPow(base: bigint, exponent: bigint, mod: bigint): bigint {
+        let result = BigInt(1);
+        base = base % mod;
+        while (exponent > 0) {
+            if (exponent % BigInt(2) === BigInt(1)) {
+                result = (result * base) % mod;
+            }
+            exponent = exponent >> BigInt(1);
+            base = (base * base) % mod;
+        }
+        return result;
+    }
+
+    // modular square root using (p + 1) / 4 (valid for secp256k1)
+    modSqrt(a: bigint): bigint {
+        return this.modPow(a, (this.P + BigInt(1)) / BigInt(4), this.P);
+    }
+
+    // decompress a compressed public key
+    decompressPublicKey(compressed: Uint8Array): Uint8Array {
+        if (compressed.length !== 33) {
+            throw new Error('Invalid compressed public key length');
+        }
+
+        const prefix = compressed[0];
+        if (prefix !== 0x02 && prefix !== 0x03) {
+            throw new Error('Invalid compressed public key prefix');
+        }
+
+        const x = BigInt('0x' + bytesToHex(compressed.slice(1)));
+        const ySq = (this.modPow(x, BigInt(3), this.P) + this.B) % this.P;
+        const y = this.modSqrt(ySq);
+
+        const isYOdd = y % BigInt(2) === BigInt(1);
+        const correctY = (prefix === 0x03) === isYOdd ? y : this.P - y;
+
+        const xBytes = compressed.slice(1); // already 32 bytes
+        const yBytes = hexToBytes(correctY.toString(16).padStart(64, '0'));
+
+        const uncompressed = new Uint8Array(65);
+        uncompressed[0] = 0x04;
+        uncompressed.set(xBytes, 1);
+        uncompressed.set(yBytes, 33);
+        return uncompressed;
+    }
+
+    strip0x(s: string): string {
+        return s.startsWith('0x') ? s.slice(2) : s;
     }
 }

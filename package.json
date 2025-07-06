@@ -1,6 +1,6 @@
 {
     "name": "crypto-js",
-    "version": "1.0",
+    "version": "1.1",
     "description": "an easy crypto wallet built with Typescript/Javascript for learning purpose",
     "keywords": [
         "crypto"
@@ -20,11 +20,15 @@
         "src"
     ],
     "dependencies": {
+        "@noble/hashes": "^1.8.0",
+        "@noble/secp256k1": "^2.3.0",
         "axios": "^1.9.0",
         "better-sqlite3": "^11.9.1",
         "bip32": "^4.0.0",
         "bip39": "^3.1.0",
         "inquirer": "^12.6.0",
+        "rlp": "^3.0.0",
+        "socks-proxy-agent": "^8.0.5",
         "tiny-secp256k1": "^2.2.3"
     },
     "devDependencies": {

@@ -19,34 +19,36 @@ export class Bitcoin implements Coin {
     private txFile = 'tx';
     private signFile = 'signed_tx';
     private color = '\x1b[38;5;214m';
+    private satoshi = 100000000;
 
     constructor(helper: Helper) {
         this.helper = helper;
     }
 
     showKeyInfo(root: BIP32Interface, index: string): void {
-        const child = root.derivePath('m/' + this.purpose + '\'/' + this.coin + '\'/' + this.account + '\'/' + this.change + '/' + index);
+        const child = root.derivePath(`m/${this.purpose}'/${this.coin}'/${this.account}'/${this.change}/${index}`);
 
-        let detail = '-----------m/' + this.purpose + '\'/' + this.coin + '\'/' + this.account + '\'/' + this.change + '/' + index + '-------------------\n';
+        let detail = `-----------m/${this.purpose}'/${this.coin}'/${this.account}'/${this.change}/${index}-------------------\n`;
 
-        detail += 'WIF: ' + child.toWIF() + '\n';
-        detail += 'Private Key: ' + child.privateKey.toString('hex') + '\n';
-        detail += 'Public Key: ' + child.publicKey.toString('hex') + '\n';
-        detail += 'Segwit Address: ' + this.getSigwitAddress(child.identifier) + '\n';
+        detail += `WIF: ${child.toWIF()}\n`;
+        detail += `Private Key: ${child.privateKey.toString('hex')}\n`;
+        detail += `Public Key: ${child.publicKey.toString('hex')}\n`;
+        detail += `Segwit Address: ${this.getSigwitAddress(child.identifier)}\n`;
         detail += '------------------------------------------------\n';
 
         this.helper.print(this.color, detail);
     }
 
     async showAddressDetail(xpub: BIP32Interface, accountName: string, index: string): Promise<void> {
-        const ck = xpub.derivePath(String(this.account) + '/' + index);
+        const ck = xpub.derivePath(`${String(this.account)}/${index}`);
         const address = this.getSigwitAddress(ck.identifier);
 
         const addr = await this.getAddr(address);
-        this.helper.print(this.color, '|' + index + '|' + address + '|' + (addr.balance / 100000000) + '|' + addr.spentFlag);
+        this.helper.print(this.color, `|${index}|${address}|${addr.balance / this.satoshi}|${addr.spentFlag}`);
 
         const utxos = await this.getUtxos(address);
-        utxos.forEach(utxo => console.log(utxo));
+        this.helper.print(this.color, '---------------------UTXO---------------------');
+        utxos.forEach(utxo => this.helper.print(this.color, `|${utxo.vout}|${utxo.txid}|${utxo.value}`));
 
         this.helper.updateDb(accountName, index, addr.balance + addr.unBalance);
     }
@@ -56,17 +58,17 @@ export class Bitcoin implements Coin {
         const using_addrs = this.helper.getUsingAddresses(accountName);
 
         for (const a of using_addrs) {
-            const ck = xpub.derivePath(String(this.account) + '/' + a.idx);
+            const ck = xpub.derivePath(`${String(this.account)}/${a.idx}`);
             const address = this.getSigwitAddress(ck.identifier);
 
             const addr = await this.getAddr(address);
-            this.helper.print(this.color, '|' + a.idx + '|' + address + '|' + (addr.balance / 100000000) + '|' + addr.spentFlag);
+            this.helper.print(this.color, `|${a.idx}|${address}|${addr.balance / this.satoshi}|${addr.spentFlag}`);
             total += addr.balance;
 
             this.helper.updateDb(accountName, a.idx, addr.balance + addr.unBalance);
         }
 
-        console.log('Total Balance:' + (total / 100000000));
+        console.log(`Total Balance: ${total / this.satoshi}`);
     }
 
     async createTx(): Promise<void> {
@@ -102,9 +104,9 @@ export class Bitcoin implements Coin {
         while (true) {
             const remainAmt = totalInput - totalOutput;
             const addr = await input({ message: 'Type output address: ', required: true });
-            const balance = await input({ message: 'Type amount: ', required: true, default: (remainAmt / 100000000).toString(), validate: (value) => { return this.helper.validateAmount(value, remainAmt); } });
+            const balance = await input({ message: 'Type amount: ', required: true, default: (remainAmt / this.satoshi).toString(), validate: (value) => { return this.helper.validateAmount(value, remainAmt); } });
 
-            const realBal = Math.round(Number(balance) * 100000000);
+            const realBal = Math.round(Number(balance) * this.satoshi);
             totalOutput += realBal;
 
             const outputAddr = { address: addr, balance: realBal };
@@ -122,13 +124,13 @@ export class Bitcoin implements Coin {
         }
 
         console.log('----------------------------------');
-        console.log('transaction fee: ' + feeVb + ' ' + this.unit);
+        console.log(`transaction fee: ${feeVb} ${this.unit}`);
         console.log('----------------------------------');
 
-        inputAddrs.forEach(addr => console.log('input addr: ' + addr.address + '|' + addr.balance / 100000000));
-        outputAddrs.forEach(addr => console.log('output addr: ' + addr.address + '|' + addr.balance / 100000000));
+        inputAddrs.forEach(addr => console.log(`input addr: ${addr.address}|${addr.balance / this.satoshi}`));
+        outputAddrs.forEach(addr => console.log(`output addr: ${addr.address}|${addr.balance / this.satoshi}`));
         if (changeAddr) {
-            console.log('change addr: ' + changeAddr.address + '|' + changeAddr.balance / 100000000);
+            console.log(`change addr: ${changeAddr.address}|${changeAddr.balance / this.satoshi}`);
         }
 
         console.log('----------------------------------');
@@ -171,8 +173,8 @@ export class Bitcoin implements Coin {
         const fee = Math.ceil(vSize * tx['fee']); // calculated fee
 
         console.log('----------------------------------');
-        console.log('calculated fee: ' + fee + ' ' + this.unit);
-        console.log('vSize: ' + vSize + ' vbytes');
+        console.log(`calculated fee: ${fee / this.satoshi} ${this.code}`);
+        console.log(`vSize: ${vSize} vbytes`);
         console.log('----------------------------------');        
 
         // loop all input and get all addresses
@@ -235,7 +237,7 @@ export class Bitcoin implements Coin {
 
             raw += '02'; // stackitems
             const rawSignature = node.sign(this.getPreimage(version, inData, outData, seqs, sequence, locktime, input), true);
-            const signature = Buffer.from(this.helper.toDER(rawSignature)).toString('hex') + '01'; // DER Sign + SIGHASH_ALL (0x01)
+            const signature = `${Buffer.from(this.helper.toDER(rawSignature)).toString('hex')}01`; // DER Sign + SIGHASH_ALL (0x01)
             raw += this.helper.getCompactSize(signature.length / 2); // signature size
             raw += signature; // signature
 
@@ -247,6 +249,7 @@ export class Bitcoin implements Coin {
         raw += locktime; // locktime
 
         fs.writeFile(this.signFile, raw, 'utf8');
+        console.log(raw);
     }
 
     private async getAddr(address: string): Promise<any> {
