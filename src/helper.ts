@@ -18,38 +18,33 @@ export class Helper {
     coinRegistry: Coin[] = [];
     DB_FILE = 'acc.db';
     db: Database;
-    online: boolean;
 
     // secp256k1 constants
     P = BigInt('0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f');
     A = BigInt(0);
     B = BigInt(7);
 
-    constructor(online: boolean) {
-        this.online = online;
-        if (online) { // online mode will initialize db and network connection
-            // init db
-            const fs = require('fs');
-            if (fs.existsSync(this.DB_FILE)) {
-                this.db = new DatabaseInstance(this.DB_FILE);
-            }
-            // init network
-            this.initNetwork();
-        }
-
+    constructor() {
         this.coinRegistry.push(new Bitcoin(this));
         this.coinRegistry.push(new BitcoinSV(this));
         this.coinRegistry.push(new BitcoinCash(this));
         this.coinRegistry.push(new Ethereum(this));
     }
 
-    async initNetwork(): Promise<void> {
+    async initResource(): Promise<void> {
+        // init db
+        const fs = require('fs');
+        if (fs.existsSync(this.DB_FILE)) {
+            this.db = new DatabaseInstance(this.DB_FILE);
+        }
+
+        // init network
         const config: AxiosRequestConfig = {};
         config.headers = { 'Content-Type': 'application/json' };
         config.validateStatus = () => true;
         try {
-            const url = 'www.google.com';
-            const response = await fetch(url, { method: 'HEAD', mode: 'no-cors' });
+            const url = 'https://www.google.com';
+            await fetch(url, { method: 'HEAD', mode: 'no-cors' });
             // For 'no-cors' mode, we can't inspect the response status directly,
             // but a successful fetch indicates a connection.
             // If you can use 'cors' mode, you can check response.ok or response.status.
@@ -63,6 +58,10 @@ export class Helper {
             config.httpsAgent = agent;
             this.api = axios.create(config);
         }
+
+        this.coinRegistry.forEach(c => {
+            c.initAPIKey();
+        });        
     }
 
     isFloat(value: string): boolean {

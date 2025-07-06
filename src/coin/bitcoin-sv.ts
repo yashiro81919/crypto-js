@@ -23,7 +23,9 @@ export class BitcoinSV implements Coin {
 
     constructor(helper: Helper) {
         this.helper = helper;
-    }    
+    }
+
+    initAPIKey(): void {}     
 
     showKeyInfo(root: BIP32Interface, index: string): void {
         const child = root.derivePath(`m/${this.purpose}'/${this.coin}'/${this.account}'/${this.change}/${index}`);

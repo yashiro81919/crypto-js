@@ -27,7 +27,8 @@ async function chooseAccount(dbAccounts: any[]): Promise<BIP32Interface> {
 }
 
 async function main(): Promise<void> {
-    helper = new Helper(true);
+    helper = new Helper();
+    await helper.initResource();
     const rows = helper.getAllAccounts();
 
     let xpub = await chooseAccount(rows);

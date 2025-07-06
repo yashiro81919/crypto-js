@@ -2,7 +2,6 @@ import { input, confirm, select } from '@inquirer/prompts';
 import { encode as rlpEncode } from 'rlp'
 import { Helper } from '../helper';
 import { BIP32Interface } from 'bip32';
-import * as secp from '@noble/secp256k1';
 import { hexToBytes, bytesToHex } from '@noble/hashes/utils';
 import { keccak_256 } from '@noble/hashes/sha3';
 import { Coin } from './coin';
@@ -32,9 +31,10 @@ export class Ethereum implements Coin {
 
     constructor(helper: Helper) {
         this.helper = helper;
-        if (this.helper.online) {
-            this.apiKey = this.helper.getAPIKey('etherscan');
-        }
+    }
+
+    initAPIKey(): void {
+        this.apiKey = this.helper.getAPIKey('etherscan');
     }
 
     showKeyInfo(root: BIP32Interface, index: string): void {
@@ -197,6 +197,7 @@ export class Ethereum implements Coin {
         const messageHash = keccak_256(message);
         const privateKey = this.helper.strip0x(pk);
 
+        const secp = await import('@noble/secp256k1');
         const rawSignature = await secp.signAsync(messageHash, privateKey, { lowS: true }); // sig is 64 bytes, recoveryId is v
 
         const r = rawSignature.r;

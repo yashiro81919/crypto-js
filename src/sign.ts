@@ -7,7 +7,7 @@ let coin: Coin;
 let helper: Helper;
 
 async function main(): Promise<void> {
-    helper = new Helper(false);
+    helper = new Helper();
     coin = await helper.chooseCoin();
     coin.sign();
 }

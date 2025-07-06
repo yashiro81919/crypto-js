@@ -25,6 +25,8 @@ export class BitcoinCash implements Coin {
         this.helper = helper;
     }
 
+    initAPIKey(): void {}     
+
     showKeyInfo(root: BIP32Interface, index: string): void {
         const child = root.derivePath(`m/${this.purpose}'/${this.coin}'/${this.account}'/${this.change}/${index}`);
 

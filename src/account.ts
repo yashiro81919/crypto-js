@@ -35,7 +35,7 @@ async function changeAccount(): Promise<BIP32Interface> {
 }
 
 async function main(): Promise<void> {
-    helper = new Helper(false);
+    helper = new Helper();
     const data = await fs.readFile(seedFilePath, 'utf8');
     const passphrase = await password({ message: 'Passphrase: ', mask: '*' });
     mnemonic = aes256gcmDecode(Buffer.from(data, 'hex'), passphrase).toString('utf8');
