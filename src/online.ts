@@ -26,9 +26,7 @@ async function chooseAccount(dbAccounts: any[]): Promise<BIP32Interface> {
     return bip32.fromPublicKey(node.publicKey, node.chainCode);
 }
 
-async function main(): Promise<void> {
-    helper = new Helper();
-    await helper.initResource();
+async function account(): Promise<void> {
     const rows = helper.getAllAccounts();
 
     let xpub = await chooseAccount(rows);
@@ -58,6 +56,35 @@ async function main(): Promise<void> {
             return;
         }
     }
+}
+
+// this script should be deployed on online device for creating transaction data
+// transaction file will be in current folder and the name is tx
+async function createTx(): Promise<void> {
+    coin = await helper.chooseCoin();
+    coin.createTx();
+}
+
+async function main(): Promise<void> {
+    helper = new Helper();
+    await helper.initResource();
+
+    const step = await select({
+        message: 'Choose your action: ', choices: [
+            { value: 0, name: 'check account detail information' },
+            { value: 1, name: 'create a new transaction' },
+            { value: 2, name: 'exit' }
+        ]
+    });
+
+    if (step === 0) {
+        await account();
+    } else if (step === 1) {
+       await createTx();
+    } else if (step === 2) {
+        helper.destroy();
+        return;
+    }    
 }
 
 if (require.main === module) {

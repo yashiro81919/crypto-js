@@ -1,6 +1,6 @@
 import * as fs from 'fs/promises';
 import { input, select, password } from '@inquirer/prompts';
-import { aes256gcmDecode } from './aes';
+import { aes256gcmEncode, aes256gcmDecode } from './aes';
 import { Helper } from './helper';
 import * as bip39 from 'bip39';
 import { BIP32Factory, BIP32Interface } from 'bip32';
@@ -9,6 +9,7 @@ import { Coin } from './coin/coin';
 
 const bip32 = BIP32Factory(ecc);
 const seedFilePath = 'seed';
+const newSeedfilePath = 'new_seed';
 const masterPublicFilePath = 'public';
 let coin: Coin;
 let mnemonic: string;
@@ -34,8 +35,24 @@ async function changeAccount(): Promise<BIP32Interface> {
     return getKey();
 }
 
-async function main(): Promise<void> {
-    helper = new Helper();
+async function generateSeed(): Promise<void> {
+    // generate new seed
+    const mnemonic = bip39.generateMnemonic(256);
+    const seed = bip39.mnemonicToSeedSync(mnemonic).toString('hex');
+    const entropy = bip39.mnemonicToEntropy(mnemonic);
+
+    // encrypt seed and save to file
+    const passphrase = await input({ message: 'Passphrase: ', required: true });
+    const encrypted = aes256gcmEncode(Buffer.from(mnemonic, 'utf8'), passphrase);
+
+    console.log('Mnemonic:', mnemonic);
+    console.log('Seed:', seed);
+    console.log('Entropy:', entropy);
+
+    fs.writeFile(newSeedfilePath, encrypted.toString('hex'), 'utf8');
+}
+
+async function account(): Promise<void> {
     const data = await fs.readFile(seedFilePath, 'utf8');
     const passphrase = await password({ message: 'Passphrase: ', mask: '*' });
     mnemonic = aes256gcmDecode(Buffer.from(data, 'hex'), passphrase).toString('utf8');
@@ -58,6 +75,36 @@ async function main(): Promise<void> {
             return;
         }
     }
+}
+
+// this script should be deployed on offline device for signing the transaction with your private key
+// make sure a file named "tx" has been put in the same folder which includes the transaction data created in online devices
+async function sign(): Promise<void> {
+    coin = await helper.chooseCoin();
+    coin.sign();
+}
+
+async function main(): Promise<void> {
+    helper = new Helper();
+    
+    const step = await select({
+        message: 'Choose your action: ', choices: [
+            { value: 0, name: 'check account private key' },
+            { value: 1, name: 'sign transaction with private key' },
+            { value: 2, name: 'generate new seed' },
+            { value: 3, name: 'exit' }
+        ]
+    });
+
+    if (step === 0) {
+        await account();
+    } else if (step === 1) {
+       await sign();
+    } else if (step === 2) {
+       await generateSeed();
+    } else if (step === 3) {
+        return;
+    }    
 }
 
 if (require.main === module) {

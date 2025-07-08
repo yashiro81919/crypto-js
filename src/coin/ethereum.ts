@@ -21,11 +21,10 @@ export class Ethereum implements Coin {
     private color = '\x1b[38;5;92m';
     private wei = Number(1000000000000000000n);
     private gWei = 1000000000;
-    private erc20Unit = 1000000;
     private erc20Tokens = [
-        { name: 'USDT', address: '0xdac17f958d2ee523a2206206994597c13d831ec7' },
-        { name: 'USDC', address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' },
-        { name: 'DAI', address: '0x6b175474e89094c44da98b954eedeac495271d0f' }
+        { name: 'USDT', address: '0xdac17f958d2ee523a2206206994597c13d831ec7', decimals: 10 ** 6 },
+        { name: 'USDC', address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', decimals: 10 ** 6 },
+        { name: 'DAI', address: '0x6b175474e89094c44da98b954eedeac495271d0f', decimals: 10 ** 18 }
     ];
     private apiKey: string;
 
@@ -61,7 +60,7 @@ export class Ethereum implements Coin {
 
         const tokens = await this.getTokens(address);
         this.helper.print(this.color, '---------------------ERC20---------------------');
-        tokens.forEach(token => this.helper.print(this.color, `|${token.name}|${token.value / this.erc20Unit}`));
+        tokens.forEach(token => this.helper.print(this.color, `|${token.name}|${token.value / token.unit}`));
 
         this.helper.updateDb(accountName, index, addr.balance + addr.unBalance);
     }
@@ -123,8 +122,9 @@ export class Ethereum implements Coin {
             txUint = this.wei;
         } else {
             const tokens = await this.getTokens(inputAddr);
-            inBalance = tokens.find(t => t.name === token).value;
-            txUint = this.erc20Unit;
+            const tokenObj = tokens.find(t => t.name === token);
+            inBalance = tokenObj.value;
+            txUint = tokenObj.unit;
         }
         const inObj = { address: inputAddr, balance: inBalance };
 
@@ -230,7 +230,7 @@ export class Ethereum implements Coin {
         const tokens = [];
         for (const token of this.erc20Tokens) {
             const resp = await this.helper.api.get(`https://api.etherscan.io/v2/api?chainid=1&module=account&action=tokenbalance&contractaddress=${token.address}&address=${address}&tag=latest&apikey=${this.apiKey}`);
-            tokens.push({ name: token.name, value: resp.data['result'] });
+            tokens.push({ name: token.name, value: resp.data['result'], unit: token.decimals });
         }
         return tokens;
     }
