@@ -1,7 +1,6 @@
 import { select } from '@inquirer/prompts';
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { sha256 } from '@noble/hashes/sha2';
-import { hexToBytes, bytesToHex } from '@noble/hashes/utils';
 import { Database } from 'better-sqlite3';
 import DatabaseInstance = require('better-sqlite3');
 import { SocksProxyAgent } from 'socks-proxy-agent';
@@ -11,12 +10,15 @@ import { Bitcoin } from './coin/bitcoin';
 import { BitcoinSV } from './coin/bitcoin-sv';
 import { BitcoinCash } from './coin/bitcoin-cash';
 import { Ethereum } from './coin/ethereum';
+import { Monero } from './coin/monero';
 
 export class Helper {
 
     api: AxiosInstance;
     coinRegistry: Coin[] = [];
     DB_FILE = 'acc.db';
+    TX_FILE = 'tx';
+    SIG_TX_FILE = 'sigtx';
     db: Database;
 
     // secp256k1 constants
@@ -29,6 +31,7 @@ export class Helper {
         this.coinRegistry.push(new BitcoinSV(this));
         this.coinRegistry.push(new BitcoinCash(this));
         this.coinRegistry.push(new Ethereum(this));
+        this.coinRegistry.push(new Monero(this));
     }
 
     async initResource(): Promise<void> {
@@ -61,7 +64,7 @@ export class Helper {
 
         this.coinRegistry.forEach(c => {
             c.initAPIKey();
-        });        
+        });
     }
 
     isFloat(value: string): boolean {
@@ -139,9 +142,8 @@ export class Helper {
 
     // Double SHA-256
     hash256(hex: string): string {
-        const firstSHA256 = sha256(Buffer.from(hex, 'hex'));
-        const secondSHA256 = sha256(firstSHA256);
-        return Buffer.from(secondSHA256).toString('hex');
+        const doubleSha = sha256(sha256(Buffer.from(hex, 'hex')));
+        return Buffer.from(doubleSha).toString('hex');
     }
 
     // Convert numbers to big-endian and little-endian byte orders
@@ -268,7 +270,7 @@ export class Helper {
             throw new Error('Invalid compressed public key prefix');
         }
 
-        const x = BigInt('0x' + bytesToHex(compressed.slice(1)));
+        const x = BigInt('0x' + Buffer.from(compressed.slice(1)).toString('hex'));
         const ySq = (this.modPow(x, BigInt(3), this.P) + this.B) % this.P;
         const y = this.modSqrt(ySq);
 
@@ -276,7 +278,7 @@ export class Helper {
         const correctY = (prefix === 0x03) === isYOdd ? y : this.P - y;
 
         const xBytes = compressed.slice(1); // already 32 bytes
-        const yBytes = hexToBytes(correctY.toString(16).padStart(64, '0'));
+        const yBytes = Buffer.from(correctY.toString(16).padStart(64, '0'), 'hex');
 
         const uncompressed = new Uint8Array(65);
         uncompressed[0] = 0x04;

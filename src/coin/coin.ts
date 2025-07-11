@@ -11,5 +11,5 @@ export interface Coin {
     showAddressDetail(xpub: BIP32Interface, accountName: string, index: string): void;
     showUsingAddresses(xpub: BIP32Interface, accountName: string): void;
     createTx(): void;
-    sign(): void;
+    sign(tx: any): void;
 }

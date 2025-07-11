@@ -16,10 +16,8 @@ export class Bitcoin implements Coin {
     helper: Helper;
 
     private unit = 'sat/vB';
-    private txFile = 'tx';
-    private signFile = 'signed_tx';
     private color = '\x1b[38;5;214m';
-    private satoshi = 100000000;
+    private satoshi = 10 ** 8;
 
     constructor(helper: Helper) {
         this.helper = helper;
@@ -139,7 +137,7 @@ export class Bitcoin implements Coin {
 
         const status = await confirm({ message: 'Continue to create transaction: ' });
         if (status) {
-            const tx = { fee: feeVb, inputs: [], outputs: [] };
+            const tx = { coin: this.code, fee: feeVb, inputs: [], outputs: [] };
 
             // create input from utxos
             for (const addr of inputAddrs) {
@@ -163,14 +161,12 @@ export class Bitcoin implements Coin {
                 tx.outputs[tx.outputs.length - 1].change = true;
             }
 
-            fs.writeFile(this.txFile, JSON.stringify(tx), 'utf8');
+            fs.writeFile(this.helper.TX_FILE, JSON.stringify(tx), 'utf8');
         }
     }
 
-    async sign(): Promise<void> {
+    async sign(tx: any): Promise<void> {
         const bip32 = BIP32Factory(ecc);
-        const data = await fs.readFile(this.txFile, 'utf8');
-        const tx = JSON.parse(data);
         const vSize = this.calcVSize(tx);
         const fee = Math.ceil(vSize * tx['fee']); // calculated fee
 
@@ -250,7 +246,7 @@ export class Bitcoin implements Coin {
 
         raw += locktime; // locktime
 
-        fs.writeFile(this.signFile, raw, 'utf8');
+        fs.writeFile(this.helper.SIG_TX_FILE, raw, 'utf8');
         console.log(raw);
     }
 

@@ -2,7 +2,6 @@ import { input, confirm, select } from '@inquirer/prompts';
 import { encode as rlpEncode } from 'rlp'
 import { Helper } from '../helper';
 import { BIP32Interface } from 'bip32';
-import { hexToBytes, bytesToHex } from '@noble/hashes/utils';
 import { keccak_256 } from '@noble/hashes/sha3';
 import { Coin } from './coin';
 import * as fs from 'fs/promises';
@@ -16,11 +15,9 @@ export class Ethereum implements Coin {
     helper: Helper;
 
     private unit = 'gwei/gas';
-    private txFile = 'tx_eth';
-    private signFile = 'signed_tx_eth';
     private color = '\x1b[38;5;92m';
-    private wei = Number(1000000000000000000n);
-    private gWei = 1000000000;
+    private wei = 10 ** 18;
+    private gWei = 10 ** 9;
     private erc20Tokens = [
         { name: 'USDT', address: '0xdac17f958d2ee523a2206206994597c13d831ec7', decimals: 10 ** 6 },
         { name: 'USDC', address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', decimals: 10 ** 6 },
@@ -148,14 +145,12 @@ export class Ethereum implements Coin {
 
         const status = await confirm({ message: 'Continue to create transaction: ' });
         if (status) {
-            const tx = { fee: feeW, nonce: nonce, type: type, token: token, input: inputAddr, output: outputAddr, balance: inBalance, amount: outBalance };
-            fs.writeFile(this.txFile, JSON.stringify(tx), 'utf8');
+            const tx = { coin: this.code, fee: feeW, nonce: nonce, type: type, token: token, input: inputAddr, output: outputAddr, balance: inBalance, amount: outBalance };
+            fs.writeFile(this.helper.TX_FILE, JSON.stringify(tx), 'utf8');
         }
     }
 
-    async sign(): Promise<void> {
-        const data = await fs.readFile(this.txFile, 'utf8');
-        const tx = JSON.parse(data);
+    async sign(tx: any): Promise<void> {
         const gas = this.calcGas(tx);
         const feeW = gas * tx['fee'];
 
@@ -177,7 +172,7 @@ export class Ethereum implements Coin {
         } else {
             to = this.helper.strip0x(this.erc20Tokens.find(t => t.name === tx['token']).address);
             value = 0;
-            txData = hexToBytes(this.helper.strip0x(this.encodeERC20Transfer(tx['output'], tx['amount'])));
+            txData = Buffer.from(this.helper.strip0x(this.encodeERC20Transfer(tx['output'], tx['amount'])), 'hex');
         }
 
         const unsignedTx = [
@@ -186,7 +181,7 @@ export class Ethereum implements Coin {
             tx['fee'] , // maxPriorityFeePerGas
             tx['fee'] , // maxFeePerGas
             gas,  // gasLimit
-            hexToBytes(to), // to address
+            Buffer.from(to, 'hex'), // to address
             value,  // value
             txData,  // data
             [] // accessList (empty list)
@@ -212,9 +207,9 @@ export class Ethereum implements Coin {
         ];
 
         const signedRlp = rlpEncode(signedTx);
-        const raw = `0x02${bytesToHex(signedRlp)}`; // EIP-1559 tx prefix is 0x02
+        const raw = `0x02${Buffer.from(signedRlp).toString('hex')}`; // EIP-1559 tx prefix is 0x02
 
-        fs.writeFile(this.signFile, raw, 'utf8');
+        fs.writeFile(this.helper.SIG_TX_FILE, raw, 'utf8');
         console.log(raw);
     }
 
@@ -244,7 +239,7 @@ export class Ethereum implements Coin {
         // Assume `publicKey` is a Uint8Array of 64 bytes (no 0x04 prefix)
         publicKey = publicKey.slice(1);
         const hash = keccak_256(publicKey); // returns Uint8Array
-        return '0x' + bytesToHex(hash.slice(-20));
+        return '0x' + Buffer.from(hash.slice(-20)).toString('hex');
     }
 
     private calcGas(tx: any): number {

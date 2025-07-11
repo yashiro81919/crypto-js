@@ -27,7 +27,7 @@ async function getKey(): Promise<BIP32Interface> {
 
 async function searchIndex(root: BIP32Interface): Promise<void> {
     const index = await input({ message: 'Index: ', required: true, validate: helper.isInteger });
-    coin.showKeyInfo(root, index);
+    await coin.showKeyInfo(root, index);
 }
 
 async function changeAccount(): Promise<BIP32Interface> {
@@ -79,9 +79,11 @@ async function account(): Promise<void> {
 
 // this script should be deployed on offline device for signing the transaction with your private key
 // make sure a file named "tx" has been put in the same folder which includes the transaction data created in online devices
-async function sign(): Promise<void> {
-    coin = await helper.chooseCoin();
-    coin.sign();
+async function sign(helper: Helper): Promise<void> {
+    const data = await fs.readFile(this.helper.TX_FILE, 'utf8');
+    const tx = JSON.parse(data);
+    const coin = helper.getCoinInstance(tx['coin']);
+    coin.sign(tx);
 }
 
 async function main(): Promise<void> {
@@ -99,7 +101,7 @@ async function main(): Promise<void> {
     if (step === 0) {
         await account();
     } else if (step === 1) {
-       await sign();
+       await sign(helper);
     } else if (step === 2) {
        await generateSeed();
     } else if (step === 3) {

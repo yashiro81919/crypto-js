@@ -20,12 +20,14 @@
         "src"
     ],
     "dependencies": {
+        "@noble/curves": "^1.9.2",
         "@noble/hashes": "^1.8.0",
         "@noble/secp256k1": "^2.3.0",
         "axios": "^1.9.0",
         "better-sqlite3": "^11.9.1",
         "bip32": "^4.0.0",
         "bip39": "^3.1.0",
+        "crc-32": "^1.2.2",
         "inquirer": "^12.6.0",
         "rlp": "^3.0.0",
         "socks-proxy-agent": "^8.0.5",
