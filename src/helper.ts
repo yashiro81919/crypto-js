@@ -11,6 +11,7 @@ import { BitcoinSV } from './coin/bitcoin-sv';
 import { BitcoinCash } from './coin/bitcoin-cash';
 import { Ethereum } from './coin/ethereum';
 import { Monero } from './coin/monero';
+import { Tron } from './coin/tron';
 
 export class Helper {
 
@@ -28,9 +29,10 @@ export class Helper {
 
     constructor() {
         this.coinRegistry.push(new Bitcoin(this));
+        this.coinRegistry.push(new Ethereum(this));
         this.coinRegistry.push(new BitcoinSV(this));
         this.coinRegistry.push(new BitcoinCash(this));
-        this.coinRegistry.push(new Ethereum(this));
+        this.coinRegistry.push(new Tron(this));
         this.coinRegistry.push(new Monero(this));
     }
 
@@ -63,7 +65,7 @@ export class Helper {
         }
 
         this.coinRegistry.forEach(c => {
-            c.initAPIKey();
+            c.init();
         });
     }
 
@@ -90,7 +92,7 @@ export class Helper {
         });
 
         console.log('----------------------------------');
-        console.log('Current coin is: [' + coinName + ']');
+        console.log(`Current coin is: [${coinName}]`);
         console.log('----------------------------------');
 
         return this.getCoinInstance(coinName);
@@ -108,7 +110,11 @@ export class Helper {
 
     getAllAccounts(): any {
         const stmt = this.db.prepare('select * from t_account');
-        return stmt.all();
+        const accounts = stmt.all();
+        for (const acc of accounts) {
+            acc['pub_key'] = aes256gcmDecode(Buffer.from(acc['pub_key'], 'hex'), acc['name']).toString('utf8');
+        }
+        return accounts;
     }
 
     getUsingAddresses(accountName: string): any {
@@ -203,11 +209,11 @@ export class Helper {
         if (i <= 252) {
             return this.hexToLE(i.toString(16).padStart(2, '0'));
         } else if (i > 252 && i <= 65535) {
-            return 'fd' + this.hexToLE(i.toString(16).padStart(4, '0'));
+            return `fd${this.hexToLE(i.toString(16).padStart(4, '0'))}`;
         } else if (i > 65535 && i <= 4294967295) {
-            return 'fe' + this.hexToLE(i.toString(16).padStart(8, '0'));
+            return `fe${this.hexToLE(i.toString(16).padStart(8, '0'))}`;
         } else if (i > 4294967295 && i <= 18446744073709551615n) {
-            return 'ff' + this.hexToLE(i.toString(16).padStart(16, '0'));
+            return `ff${this.hexToLE(i.toString(16).padStart(16, '0'))}`;
         }
         return null;
     }
@@ -241,7 +247,7 @@ export class Helper {
     }
 
     // modular exponentiation: a^b mod m
-    modPow(base: bigint, exponent: bigint, mod: bigint): bigint {
+    private modPow(base: bigint, exponent: bigint, mod: bigint): bigint {
         let result = BigInt(1);
         base = base % mod;
         while (exponent > 0) {
@@ -255,7 +261,7 @@ export class Helper {
     }
 
     // modular square root using (p + 1) / 4 (valid for secp256k1)
-    modSqrt(a: bigint): bigint {
+    private modSqrt(a: bigint): bigint {
         return this.modPow(a, (this.P + BigInt(1)) / BigInt(4), this.P);
     }
 
@@ -270,7 +276,7 @@ export class Helper {
             throw new Error('Invalid compressed public key prefix');
         }
 
-        const x = BigInt('0x' + Buffer.from(compressed.slice(1)).toString('hex'));
+        const x = BigInt(`0x${Buffer.from(compressed.slice(1)).toString('hex')}`);
         const ySq = (this.modPow(x, BigInt(3), this.P) + this.B) % this.P;
         const y = this.modSqrt(ySq);
 

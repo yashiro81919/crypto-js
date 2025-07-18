@@ -29,7 +29,7 @@ export class Ethereum implements Coin {
         this.helper = helper;
     }
 
-    initAPIKey(): void {
+    init(): void {
         this.apiKey = this.helper.getAPIKey('etherscan');
     }
 

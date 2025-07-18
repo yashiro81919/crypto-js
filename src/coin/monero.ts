@@ -138,7 +138,7 @@ export class Monero implements Coin {
         this.helper = helper;
     }
 
-    initAPIKey(): void { }
+    init(): void { }
 
     async showKeyInfo(root: BIP32Interface, index: string): Promise<void> {
         const child = root.derivePath(`m/${this.purpose}'/${this.coin}'/${this.account}'/${this.change}/${index}`);
@@ -202,181 +202,47 @@ export class Monero implements Coin {
     }
 
     async createTx(): Promise<void> {
-        let totalInput = 0;
-        let totalOutput = 0;
-        let changeAddr: any;
-        const inputAddrs = [];
-        const outputAddrs = [];
 
-        // calculate network fees
-        let feeVb = await this.getFee();
-
-        const newFee = await input({ message: `Type new fee if you want to change (${this.unit}): `, default: feeVb.toString(), validate: this.helper.isFloat });
-        feeVb = Number(newFee);
-
-        // add input address
-        while (true) {
-            const addr = await input({ message: 'Type input address: ', required: true });
-            const addrObj = await this.getAddr(addr);
-            const balance = addrObj.balance;
-            totalInput += balance;
-
-            const inputAddr = { address: addr, balance: balance };
-            inputAddrs.push(inputAddr);
-
-            const status = await confirm({ message: 'Continue to add input address: ' });
-            if (!status) {
-                break;
-            }
-        }
-
-        // add output address and amount
-        while (true) {
-            const remainAmt = totalInput - totalOutput;
-            const addr = await input({ message: 'Type output address: ', required: true });
-            const balance = await input({ message: 'Type amount: ', required: true, default: (remainAmt / this.satoshi).toString(), validate: (value) => { return this.helper.validateAmount(value, remainAmt); } });
-
-            const realBal = Math.round(Number(balance) * this.satoshi);
-            totalOutput += realBal;
-
-            const outputAddr = { address: addr, balance: realBal };
-            outputAddrs.push(outputAddr);
-
-            const status = await confirm({ message: 'Continue to add output address: ' });
-            if (!status) {
-                break;
-            }
-        }
-
-        // add change address and amount
-        if (totalInput > totalOutput) {
-            changeAddr = { address: inputAddrs[inputAddrs.length - 1].address, balance: totalInput - totalOutput };
-        }
-
-        console.log('----------------------------------');
-        console.log(`transaction fee: ${feeVb} ${this.unit}`);
-        console.log('----------------------------------');
-
-        inputAddrs.forEach(addr => console.log(`input addr: ${addr.address}|${addr.balance / this.satoshi}`));
-        outputAddrs.forEach(addr => console.log(`output addr: ${addr.address}|${addr.balance / this.satoshi}`));
-        if (changeAddr) {
-            console.log(`change addr: ${changeAddr.address}|${changeAddr.balance / this.satoshi}`);
-        }
-
-        console.log('----------------------------------');
-
-        const status = await confirm({ message: 'Continue to create transaction: ' });
-        if (status) {
-            const tx = { coin: this.code, fee: feeVb, inputs: [], outputs: [] };
-
-            // create input from utxos
-            for (const addr of inputAddrs) {
-                const utxos = await this.getUtxos(addr.address);
-                const inputs = utxos.map(u => {
-                    return { txid: u['txid'], vout: u['vout'], address: addr.address, value: u['value'] };
-                });
-                tx.inputs.push(...inputs);
-            }
-
-            // create output from outputAddrs
-            const outputs = outputAddrs.map(addr => {
-                return { address: addr.address, amount: addr.balance, change: false };
-            });
-            tx.outputs.push(...outputs);
-
-            // create output from changeAddr if have
-            if (changeAddr) {
-                tx.outputs.push({ address: changeAddr.address, amount: changeAddr.balance, change: true });
-            } else {
-                tx.outputs[tx.outputs.length - 1].change = true;
-            }
-
-            fs.writeFile(this.helper.TX_FILE, JSON.stringify(tx), 'utf8');
-        }
     }
 
     async sign(tx: any): Promise<void> {
-        const size = 1;
-        const fee = Math.ceil(size * tx['fee']); // calculated fee
+        const chunks: Uint8Array[] = [];
 
-        console.log('----------------------------------');
-        console.log(`calculated fee: ${fee / this.satoshi} ${this.code}`);
-        console.log(`size: ${size} bytes`);
-        console.log('----------------------------------');
+        chunks.push(this.encodeVarint(tx.version));
+        chunks.push(this.encodeVarint(tx.unlockTime));
 
-        // loop all input and get all addresses
-        // remove duplicate addresses
-        const addresses = new Set<string>();
-        for (const addr of tx['inputs']) {
-            addresses.add(addr['address']);
+        // Serialize inputs
+        chunks.push(this.encodeVarint(tx.vin.length));
+        for (const input of tx.vin) {
+            chunks.push(new Uint8Array([0x02])); // vin tag: 0x02 for "key"
+            chunks.push(this.encodeVarint(input.keyOffsets.length));
+            for (const offset of input.keyOffsets) {
+                chunks.push(this.encodeVarint(offset));
+            }
+            chunks.push(input.keyImage);
         }
 
-        // collect pk and associated to address
-        const keyMap = new Map<string, string>();
-        for (const address of addresses) {
-            const pk = await input({ message: `Type WIF private key for address [${address}]: `, required: true });
-            keyMap.set(address, pk);
+        // Serialize outputs
+        chunks.push(this.encodeVarint(tx.vout.length));
+        for (const output of tx.vout) {
+            chunks.push(this.encodeVarint(output.amount)); // 0 for RingCT
+            chunks.push(new Uint8Array([0x02])); // vout tag: 0x02 for "to_key"
+            chunks.push(output.stealthPublicKey);
         }
 
-        let raw = '';
+        // Serialize extra
+        const extraCombined = Uint8Array.from(tx.extra.flatMap(b => Array.from(b)));
+        chunks.push(this.encodeVarint(extraCombined.length));
+        chunks.push(extraCombined);
 
-        const version = '02000000';
-        const locktime = '00000000';
-
-        raw += version; // version
-
-        raw += this.helper.getCompactSize(tx['inputs'].length); // inputcount
-        let inData = '';
-        let seqs = '';
-        const sequence = 'fdffffff'; // sequence, enable RBF
-        for (const input of tx['inputs']) {
-            const txId = this.helper.hexToLE(input['txid']); // txid, must be Reverse Byte Order
-            const vout = this.helper.hexToLE(input['vout'].toString(16).padStart(8, '0')); // vout
-
-            raw += txId + vout;
-            raw += `{${input['txid']}}`; // scriptsig size and scriptsig, set placeholder here
-            raw += sequence;
-
-            inData += txId + vout;
-            seqs += sequence;
-            input['txid-vout'] = txId + vout; // add a new property txid + vout            
+        // Concatenate all
+        const totalLength = chunks.reduce((sum, c) => sum + c.length, 0);
+        const buffer = new Uint8Array(totalLength);
+        let offset = 0;
+        for (const chunk of chunks) {
+            buffer.set(chunk, offset);
+            offset += chunk.length;
         }
-
-        raw += this.helper.getCompactSize(tx['outputs'].length); // outputcount
-        let outData = '';
-        for (const output of tx['outputs']) {
-            const scriptPubkey = `76a914{}88ac`;; // scriptpubkey
-            const keySize = this.helper.getCompactSize(scriptPubkey.length / 2); // scriptpubkeysize
-            const finalAmt = output['change'] ? output['amount'] - fee : output['amount']; // output with change flag will deduct network fee
-            let amount = this.helper.hexToLE(finalAmt.toString(16).padStart(16, '0')); // amount
-
-            outData += amount + keySize + scriptPubkey;
-            raw += amount + keySize + scriptPubkey;
-        }
-
-        raw += locktime; // locktime
-
-        // calculate and update signature part of tx
-        for (const input of tx['inputs']) {
-            const wifKey = keyMap.get(input['address']);
-            const decoded = wif.decode(wifKey);
-            const node = null;
-
-            const rawSignature = node.sign(null, true);
-            const signature = `${Buffer.from(this.helper.toDER(rawSignature)).toString('hex')}41`; // DER Sign + SIGHASH_FORKID (0x41)
-            const sigSize = this.helper.getCompactSize(signature.length / 2); // signature size
-
-            const publicKey = node.publicKey.toString('hex');
-            const publicKeySize = this.helper.getCompactSize(publicKey.length / 2); // publicKey size
-
-            const scriptSig = sigSize + signature + publicKeySize + publicKey;
-            const scriptSigSize = this.helper.getCompactSize(scriptSig.length / 2);
-
-            raw = raw.replace(`{${input['txid']}}`, scriptSigSize + scriptSig);
-        }
-
-        fs.writeFile(this.helper.SIG_TX_FILE, raw, 'utf8');
-        console.log(raw);
     }
 
     private async getAddr(address: string): Promise<any> {
@@ -403,6 +269,16 @@ export class Monero implements Coin {
 
     private async getFee(): Promise<number> {
         return 1;
+    }
+
+    private encodeVarint(n: number): Uint8Array {
+        const out: number[] = [];
+        while (n >= 0x80) {
+            out.push((n & 0x7f) | 0x80);
+            n >>= 7;
+        }
+        out.push(n);
+        return new Uint8Array(out);
     }
 
     private scReduce32(seedHex: string): string {
@@ -441,7 +317,7 @@ export class Monero implements Coin {
         // 1. Derive m = Hs("SubAddr" + private view key + major + minor)
         const subAddr = '5375624164647200'; // "SubAddr"
         const a = privateViewKey;
-        const major = this.helper.hexToLE(account.toString(16).padStart(8, '0')); 
+        const major = this.helper.hexToLE(account.toString(16).padStart(8, '0'));
         const minor = this.helper.hexToLE(index.toString(16).padStart(8, '0'));
         const data = subAddr + a + major + minor;
         const mHash = keccak_256(Buffer.from(data, 'hex'));

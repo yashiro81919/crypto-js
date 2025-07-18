@@ -32,7 +32,7 @@ async function account(): Promise<void> {
     let xpub = await chooseAccount(rows);
     while (true) {
         console.log("----------------------------------");
-        console.log("Current account is: [" + accountName + "]");
+        console.log(`Current account is: [${accountName}]`);
         console.log("----------------------------------");
 
         const step = await select({

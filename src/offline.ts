@@ -79,10 +79,13 @@ async function account(): Promise<void> {
 
 // this script should be deployed on offline device for signing the transaction with your private key
 // make sure a file named "tx" has been put in the same folder which includes the transaction data created in online devices
-async function sign(helper: Helper): Promise<void> {
-    const data = await fs.readFile(this.helper.TX_FILE, 'utf8');
+async function sign(): Promise<void> {
+    const data = await fs.readFile(helper.TX_FILE, 'utf8');
     const tx = JSON.parse(data);
     const coin = helper.getCoinInstance(tx['coin']);
+    console.log("----------------------------------");
+    console.log(`Current coin is: [${tx['coin']}]`);
+    console.log("----------------------------------");
     coin.sign(tx);
 }
 
@@ -101,7 +104,7 @@ async function main(): Promise<void> {
     if (step === 0) {
         await account();
     } else if (step === 1) {
-       await sign(helper);
+       await sign();
     } else if (step === 2) {
        await generateSeed();
     } else if (step === 3) {
