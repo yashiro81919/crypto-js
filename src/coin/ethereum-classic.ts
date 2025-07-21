@@ -193,7 +193,7 @@ export class EthereumClassic implements Coin {
         const unBalance = 0;
         resp = await this.helper.api.get(`https://etc.blockscout.com/api/v2/addresses/${address}/transactions`);
         const txs: any[] = resp.data['items'];
-        const nonce = txs.filter(t => t['from']['hash'] === address).length;
+        const nonce = txs.filter(t => t['from']['hash'].toLowerCase() === address.toLowerCase()).length;
         return { balance: Number(balance), unBalance: unBalance, nonce: nonce };
     }
 
