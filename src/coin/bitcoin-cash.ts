@@ -16,7 +16,7 @@ export class BitcoinCash implements Coin {
     helper: Helper;
 
     private unit = 'sat/byte';
-    private color = '\x1b[38;5;118m';
+    private color = '\x1b[38;5;154m';
     private satoshi = 10 ** 8;
 
     constructor(helper: Helper) {
@@ -248,7 +248,7 @@ export class BitcoinCash implements Coin {
 
         fs.writeFile(this.helper.SIG_TX_FILE, raw, 'utf8');
         console.log(raw);
-    }
+    }     
 
     private async getAddr(address: string): Promise<any> {
         const resp = await this.helper.api.get(`https://api.fullstack.cash/v5/electrumx/balance/${address}`);

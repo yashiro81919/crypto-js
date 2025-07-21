@@ -10,8 +10,7 @@ import { Bitcoin } from './coin/bitcoin';
 import { BitcoinSV } from './coin/bitcoin-sv';
 import { BitcoinCash } from './coin/bitcoin-cash';
 import { Ethereum } from './coin/ethereum';
-import { Monero } from './coin/monero';
-import { Tron } from './coin/tron';
+import { EthereumClassic } from './coin/ethereum-classic';
 
 export class Helper {
 
@@ -32,8 +31,7 @@ export class Helper {
         this.coinRegistry.push(new Ethereum(this));
         this.coinRegistry.push(new BitcoinSV(this));
         this.coinRegistry.push(new BitcoinCash(this));
-        this.coinRegistry.push(new Tron(this));
-        this.coinRegistry.push(new Monero(this));
+        this.coinRegistry.push(new EthereumClassic(this));
     }
 
     async initResource(): Promise<void> {

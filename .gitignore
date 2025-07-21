@@ -140,7 +140,7 @@ dist
 new_seed
 seed
 tx*
-signed_tx*
+sigtx*
 package-lock.json
 acc.db
 public

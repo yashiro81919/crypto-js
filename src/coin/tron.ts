@@ -1,5 +1,5 @@
 import { input, confirm, select } from '@inquirer/prompts';
-import { encode as rlpEncode } from 'rlp'
+import { encode as rlpEncode } from 'rlp';
 import { Helper } from '../helper';
 import { base58 } from '@scure/base';
 import { BIP32Interface } from 'bip32';
