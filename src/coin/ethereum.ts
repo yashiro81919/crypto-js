@@ -3,6 +3,7 @@ import { encode as rlpEncode } from 'rlp';
 import { Helper } from '../helper';
 import { BIP32Interface } from 'bip32';
 import { keccak_256 } from '@noble/hashes/sha3';
+import { secp256k1 } from '@noble/curves/secp256k1';
 import { Coin } from './coin';
 import * as fs from 'fs/promises';
 
@@ -192,8 +193,7 @@ export class Ethereum implements Coin {
         const messageHash = keccak_256(message);
         const privateKey = this.helper.strip0x(pk);
 
-        const secp = await import('@noble/secp256k1');
-        const rawSignature = await secp.signAsync(messageHash, privateKey, { lowS: true }); // sig is 64 bytes, recoveryId is v
+        const rawSignature = secp256k1.sign(messageHash, privateKey, { lowS: true }); // sig is 64 bytes, recoveryId is v
 
         const r = rawSignature.r;
         const s = rawSignature.s;

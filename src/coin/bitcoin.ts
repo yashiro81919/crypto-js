@@ -2,8 +2,8 @@ import { input, confirm } from '@inquirer/prompts';
 import { bech32 } from '@scure/base';
 import * as wif from 'wif';
 import { Helper } from '../helper';
-import { BIP32Factory, BIP32Interface } from 'bip32';
-import * as ecc from 'tiny-secp256k1';
+import { BIP32Interface } from 'bip32';
+import { secp256k1 } from '@noble/curves/secp256k1';
 import { Coin } from './coin';
 import * as fs from 'fs/promises';
 
@@ -166,7 +166,6 @@ export class Bitcoin implements Coin {
     }
 
     async sign(tx: any): Promise<void> {
-        const bip32 = BIP32Factory(ecc);
         const vSize = this.calcVSize(tx);
         const fee = Math.ceil(vSize * tx['fee']); // calculated fee
 
@@ -231,15 +230,16 @@ export class Bitcoin implements Coin {
         for (const input of tx['inputs']) {
             const wifKey = keyMap.get(input['address']);
             const decoded = wif.decode(wifKey);
-            const node = bip32.fromPrivateKey(decoded.privateKey, decoded.compressed ? Buffer.alloc(32) : undefined);
+            const privateKey = decoded.privateKey;
 
             raw += '02'; // stackitems
-            const rawSignature = node.sign(this.getPreimage(version, inData, outData, seqs, sequence, locktime, input), true);
-            const signature = `${Buffer.from(this.helper.toDER(rawSignature)).toString('hex')}01`; // DER Sign + SIGHASH_ALL (0x01)
+            const rawSignature = secp256k1.sign(this.getPreimage(version, inData, outData, seqs, sequence, locktime, input), privateKey, { lowS: true });
+            const signature = `${rawSignature.toDERHex()}01`; // DER Sign + SIGHASH_ALL (0x01)
             raw += this.helper.getCompactSize(signature.length / 2); // signature size
             raw += signature; // signature
 
-            const publicKey = node.publicKey.toString('hex');
+            // const publicKey = node.publicKey.toString('hex');
+            const publicKey = Buffer.from(secp256k1.getPublicKey(privateKey)).toString('hex');
             raw += this.helper.getCompactSize(publicKey.length / 2); // publicKey size
             raw += publicKey; // publicKey
         }

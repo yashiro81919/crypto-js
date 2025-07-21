@@ -1,6 +1,7 @@
 import { select } from '@inquirer/prompts';
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { sha256 } from '@noble/hashes/sha2';
+import { secp256k1 } from '@noble/curves/secp256k1';
 import { Database } from 'better-sqlite3';
 import DatabaseInstance = require('better-sqlite3');
 import { SocksProxyAgent } from 'socks-proxy-agent';
@@ -162,45 +163,6 @@ export class Helper {
         return bytes.reverse().join('');
     }
 
-    // Convert raw signature to DER encoded signature
-    toDER(signature: Uint8Array): Uint8Array {
-        if (signature.length !== 64) {
-            throw new Error("Invalid signature length");
-        }
-
-        const r = signature.slice(0, 32);
-        const s = signature.slice(32, 64);
-
-        function trimLeadingZeros(buf: Uint8Array) {
-            let i = 0;
-            while (i < buf.length - 1 && buf[i] === 0) i++;
-            return buf.slice(i);
-        }
-
-        function toPositive(buf) {
-            if (buf[0] & 0x80) {
-                return Buffer.concat([Buffer.from([0x00]), buf]);
-            }
-            return buf;
-        }
-
-        const rTrimmed = toPositive(trimLeadingZeros(r));
-        const sTrimmed = toPositive(trimLeadingZeros(s));
-
-        const rLen = rTrimmed.length;
-        const sLen = sTrimmed.length;
-
-        const totalLen = 2 + rLen + 2 + sLen;
-
-        return Buffer.concat([
-            Buffer.from([0x30, totalLen]),
-            Buffer.from([0x02, rLen]),
-            rTrimmed,
-            Buffer.from([0x02, sLen]),
-            sTrimmed,
-        ]);
-    }
-
     // Convert to compact size of a number
     getCompactSize(i: number): string {
         // convert integer to a hex string with the correct prefix depending on the size of the integer
@@ -244,51 +206,10 @@ export class Helper {
         console.log(color + text + '\x1b[0m');
     }
 
-    // modular exponentiation: a^b mod m
-    private modPow(base: bigint, exponent: bigint, mod: bigint): bigint {
-        let result = BigInt(1);
-        base = base % mod;
-        while (exponent > 0) {
-            if (exponent % BigInt(2) === BigInt(1)) {
-                result = (result * base) % mod;
-            }
-            exponent = exponent >> BigInt(1);
-            base = (base * base) % mod;
-        }
-        return result;
-    }
-
-    // modular square root using (p + 1) / 4 (valid for secp256k1)
-    private modSqrt(a: bigint): bigint {
-        return this.modPow(a, (this.P + BigInt(1)) / BigInt(4), this.P);
-    }
-
     // decompress a compressed public key
     decompressPublicKey(compressed: Uint8Array): Uint8Array {
-        if (compressed.length !== 33) {
-            throw new Error('Invalid compressed public key length');
-        }
-
-        const prefix = compressed[0];
-        if (prefix !== 0x02 && prefix !== 0x03) {
-            throw new Error('Invalid compressed public key prefix');
-        }
-
-        const x = BigInt(`0x${Buffer.from(compressed.slice(1)).toString('hex')}`);
-        const ySq = (this.modPow(x, BigInt(3), this.P) + this.B) % this.P;
-        const y = this.modSqrt(ySq);
-
-        const isYOdd = y % BigInt(2) === BigInt(1);
-        const correctY = (prefix === 0x03) === isYOdd ? y : this.P - y;
-
-        const xBytes = compressed.slice(1); // already 32 bytes
-        const yBytes = Buffer.from(correctY.toString(16).padStart(64, '0'), 'hex');
-
-        const uncompressed = new Uint8Array(65);
-        uncompressed[0] = 0x04;
-        uncompressed.set(xBytes, 1);
-        uncompressed.set(yBytes, 33);
-        return uncompressed;
+        const point = secp256k1.Point.fromBytes(compressed);
+        return point.toBytes(false);
     }
 
     strip0x(s: string): string {

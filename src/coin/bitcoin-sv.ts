@@ -2,8 +2,8 @@ import { input, confirm } from '@inquirer/prompts';
 import * as wif from 'wif';
 import { base58 } from '@scure/base';
 import { Helper } from '../helper';
-import { BIP32Factory, BIP32Interface } from 'bip32';
-import * as ecc from 'tiny-secp256k1';
+import { BIP32Interface } from 'bip32';
+import { secp256k1 } from '@noble/curves/secp256k1';
 import { Coin } from './coin';
 import * as fs from 'fs/promises';
 
@@ -166,7 +166,6 @@ export class BitcoinSV implements Coin {
     }
 
     async sign(tx: any): Promise<void> {
-        const bip32 = BIP32Factory(ecc);
         const size = this.calcSize(tx);
         const fee = Math.ceil(size * tx['fee']); // calculated fee
 
@@ -231,13 +230,13 @@ export class BitcoinSV implements Coin {
         for (const input of tx['inputs']) {
             const wifKey = keyMap.get(input['address']);
             const decoded = wif.decode(wifKey);
-            const node = bip32.fromPrivateKey(decoded.privateKey, decoded.compressed ? Buffer.alloc(32) : undefined);
+            const privateKey = decoded.privateKey;
 
-            const rawSignature = node.sign(this.getPreimage(version, inData, outData, seqs, sequence, locktime, input), true);
-            const signature = `${Buffer.from(this.helper.toDER(rawSignature)).toString('hex')}41`; // DER Sign + SIGHASH_FORKID (0x41)
+            const rawSignature = secp256k1.sign(this.getPreimage(version, inData, outData, seqs, sequence, locktime, input), privateKey, { lowS: true });
+            const signature = `${rawSignature.toDERHex()}41`; // DER Sign + SIGHASH_FORKID (0x41)
             const sigSize = this.helper.getCompactSize(signature.length / 2); // signature size
 
-            const publicKey = node.publicKey.toString('hex');
+            const publicKey = Buffer.from(secp256k1.getPublicKey(privateKey)).toString('hex');
             const publicKeySize = this.helper.getCompactSize(publicKey.length / 2); // publicKey size
 
             const scriptSig = sigSize + signature + publicKeySize + publicKey;

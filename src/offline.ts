@@ -4,7 +4,7 @@ import { aes256gcmEncode, aes256gcmDecode } from './aes';
 import { Helper } from './helper';
 import * as bip39 from 'bip39';
 import { BIP32Factory, BIP32Interface } from 'bip32';
-import * as ecc from 'tiny-secp256k1';
+import * as ecc from '@bitcoinerlab/secp256k1';
 import { Coin } from './coin/coin';
 
 const bip32 = BIP32Factory(ecc);

@@ -1,6 +1,6 @@
 import { input, select } from '@inquirer/prompts';
 import { BIP32Factory, BIP32Interface } from 'bip32';
-import * as ecc from 'tiny-secp256k1';
+import * as ecc from '@bitcoinerlab/secp256k1';
 import { Helper } from './helper';
 import { Coin } from './coin/coin';
 
