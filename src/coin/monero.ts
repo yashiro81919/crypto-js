@@ -1,5 +1,4 @@
 import { input, confirm } from '@inquirer/prompts';
-import * as wif from 'wif';
 import { base58 } from '@scure/base';
 import { Helper } from '../helper';
 import { BIP32Interface } from 'bip32';

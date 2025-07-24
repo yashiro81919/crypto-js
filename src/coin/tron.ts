@@ -1,7 +1,6 @@
 import { input, confirm, select } from '@inquirer/prompts';
 import { encode as rlpEncode } from 'rlp';
 import { Helper } from '../helper';
-import { base58 } from '@scure/base';
 import { BIP32Interface } from 'bip32';
 import { keccak_256 } from '@noble/hashes/sha3';
 import { secp256k1 } from '@noble/curves/secp256k1';
@@ -246,13 +245,9 @@ export class Tron implements Coin {
         // Assume `publicKey` is a Uint8Array of 64 bytes (no 0x04 prefix)
         publicKey = publicKey.slice(1);
         const hash = keccak_256(publicKey); // returns Uint8Array
-        const address = `41${Buffer.from(hash.slice(-20)).toString('hex')}`;
-        // double sha256
-        const hash256 = this.helper.hash256(address);
-        // first 4 bytes is the checksum
-        const checksum = hash256.substring(0, 8);
-        // Prepend TRON address prefix: 0x41
-        return base58.encode(Buffer.from(`${address}${checksum}`, 'hex'));
+        const prefix = '41';
+        const hashHex = Buffer.from(hash.slice(-20)).toString('hex');
+        return this.helper.bs58Enc(prefix + hashHex);
     }
 
     private calcGas(tx: any): number {

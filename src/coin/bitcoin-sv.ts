@@ -1,5 +1,4 @@
 import { input, confirm } from '@inquirer/prompts';
-import * as wif from 'wif';
 import { base58 } from '@scure/base';
 import { Helper } from '../helper';
 import { BIP32Interface } from 'bip32';
@@ -16,7 +15,7 @@ export class BitcoinSV implements Coin {
     helper: Helper;
 
     private unit = 'sat/byte';
-    private color = '\x1b[38;5;11m';
+    private color = '\x1b[38;5;220m';
     private satoshi = 10 ** 8;
 
     constructor(helper: Helper) {
@@ -30,10 +29,10 @@ export class BitcoinSV implements Coin {
 
         let detail = `-----------m/${this.purpose}'/${this.coin}'/${this.account}'/${this.change}/${index}-------------------\n`;
 
-        detail += `WIF: ${child.toWIF()}\n`;
         detail += `Private Key: ${child.privateKey.toString('hex')}\n`;
         detail += `Public Key: ${child.publicKey.toString('hex')}\n`;
         detail += `Legacy Address: ${this.getLegacyAddress(child.identifier)}\n`;
+        detail += `WIF: ${child.toWIF()}\n`;
         detail += '------------------------------------------------\n';
 
         this.helper.print(this.color, detail);
@@ -184,7 +183,7 @@ export class BitcoinSV implements Coin {
         // collect pk and associated to address
         const keyMap = new Map<string, string>();
         for (const address of addresses) {
-            const pk = await input({ message: `Type WIF private key for address [${address}]: `, required: true });
+            const pk = await input({ message: `Type private key for address [${address}]: `, required: true });
             keyMap.set(address, pk);
         }
 
@@ -228,9 +227,7 @@ export class BitcoinSV implements Coin {
 
         // calculate and update signature part of tx
         for (const input of tx['inputs']) {
-            const wifKey = keyMap.get(input['address']);
-            const decoded = wif.decode(wifKey);
-            const privateKey = decoded.privateKey;
+            const privateKey = keyMap.get(input['address']);
 
             const rawSignature = secp256k1.sign(this.getPreimage(version, inData, outData, seqs, sequence, locktime, input), privateKey, { lowS: true });
             const signature = `${rawSignature.toDERHex()}41`; // DER Sign + SIGHASH_FORKID (0x41)
@@ -278,13 +275,7 @@ export class BitcoinSV implements Coin {
     private getLegacyAddress(hash160: Buffer): string {
         const prefix = '00';
         const hash160Hex = hash160.toString('hex');
-        // double sha256
-        const hash256 = this.helper.hash256(prefix + hash160Hex);
-        // first 4 bytes is the checksum
-        const checksum = hash256.substring(0, 8);
-        // Base58 for P2PKH address
-        const decimal = BigInt("0x" + prefix + hash160Hex + checksum);
-        return '1' + base58.encode(this.helper.bigintToUint8Array(decimal));
+        return '1' + this.helper.bs58Enc(prefix + hash160Hex);
     }
 
     private getHash160Legacy(address: `1${string}`): string {

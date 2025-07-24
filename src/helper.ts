@@ -1,6 +1,7 @@
 import { select } from '@inquirer/prompts';
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { sha256 } from '@noble/hashes/sha2';
+import { base58 } from '@scure/base';
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { Database } from 'better-sqlite3';
 import DatabaseInstance = require('better-sqlite3');
@@ -12,6 +13,9 @@ import { BitcoinSV } from './coin/bitcoin-sv';
 import { BitcoinCash } from './coin/bitcoin-cash';
 import { Ethereum } from './coin/ethereum';
 import { EthereumClassic } from './coin/ethereum-classic';
+import { Dogecoin } from './coin/dogecoin';
+import { Monero } from './coin/monero';
+import { Tron } from './coin/tron';
 
 export class Helper {
 
@@ -22,17 +26,15 @@ export class Helper {
     SIG_TX_FILE = 'sigtx';
     db: Database;
 
-    // secp256k1 constants
-    P = BigInt('0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f');
-    A = BigInt(0);
-    B = BigInt(7);
-
     constructor() {
         this.coinRegistry.push(new Bitcoin(this));
         this.coinRegistry.push(new Ethereum(this));
         this.coinRegistry.push(new BitcoinSV(this));
         this.coinRegistry.push(new BitcoinCash(this));
         this.coinRegistry.push(new EthereumClassic(this));
+        this.coinRegistry.push(new Dogecoin(this));
+        this.coinRegistry.push(new Monero(this));
+        this.coinRegistry.push(new Tron(this));
     }
 
     async initResource(): Promise<void> {
@@ -214,5 +216,23 @@ export class Helper {
 
     strip0x(s: string): string {
         return s.startsWith('0x') ? s.slice(2) : s;
+    }
+
+    // bs58check implementation
+    bs58Enc(hashHex: string): string {
+        // double sha256
+        const hash256 = this.hash256(hashHex);
+        // first 4 bytes is the checksum
+        const checksum = hash256.substring(0, 8);
+        // calculate the bigint
+        const decimal = BigInt("0x" + hashHex + checksum);
+        return base58.encode(this.bigintToUint8Array(decimal));
+    }
+
+    bs58Dec(address: string): string {
+        const val = base58.decode(address);
+        const decimal = this.uint8ArrayToBigInt(val);
+        const hex = decimal.toString(16);
+        return hex.slice(0, -8);
     }
 }
