@@ -1,4 +1,3 @@
-import { input, confirm } from '@inquirer/prompts';
 import { base58 } from '@scure/base';
 import { Helper } from '../helper';
 import { BIP32Interface } from 'bip32';
@@ -6,7 +5,6 @@ import { keccak_256 } from '@noble/hashes/sha3';
 import { ed25519 } from "@noble/curves/ed25519";
 import { str as crc32Str } from "crc-32";
 import { Coin } from './coin';
-import * as fs from 'fs/promises';
 
 export class Monero implements Coin {
     code = 'XMR';
@@ -16,9 +14,9 @@ export class Monero implements Coin {
     change = '0';
     helper: Helper;
 
-    private unit = 'sat/byte';
+    private unit = 'piconero/byte';
     private color = '\x1b[38;5;166m';
-    private satoshi = 10 ** 8;
+    private piconero = 10 ** 12;
 
     private wordList = [
         'abbey', 'abducts', 'ability', 'ablaze', 'abnormal', 'abort', 'abrasive', 'absorb', 'abyss', 'academy', 'aces', 'aching', 'acidic', 'acoustic',
@@ -159,125 +157,26 @@ export class Monero implements Coin {
         detail += `Public Spend Key: ${publicSpendKey}\n`;
         detail += `Public View Key: ${publicViewKey}\n`;
         detail += `Monero Address: ${address}\n`;
-        detail += `Monero Sub Address0: ${this.generateMoneroSubAddress(privateViewKey, publicSpendKey, publicViewKey, 0, 0)}\n`;
         detail += `Monero Sub Address1: ${this.generateMoneroSubAddress(privateViewKey, publicSpendKey, publicViewKey, 0, 1)}\n`;
-        detail += `Monero Sub Address2: ${this.generateMoneroSubAddress(privateViewKey, publicSpendKey, publicViewKey, 0, 2)}\n`;
-        detail += `Monero Sub Address3: ${this.generateMoneroSubAddress(privateViewKey, publicSpendKey, publicViewKey, 0, 3)}\n`;
         detail += '------------------------------------------------\n';
 
         this.helper.print(this.color, detail);
     }
 
     async showAddressDetail(xpub: BIP32Interface, accountName: string, index: string): Promise<void> {
-        const ck = xpub.derivePath(`${String(this.account)}/${index}`);
-        const address = '';
-
-        const addr = await this.getAddr(address);
-        this.helper.print(this.color, `|${index}|${address}|${addr.balance / this.satoshi}`);
-
-        const utxos = await this.getUtxos(address);
-        this.helper.print(this.color, '---------------------UTXO---------------------');
-        utxos.forEach(utxo => this.helper.print(this.color, `|${utxo.vout}|${utxo.txid}|${utxo.value}`));
-
-        this.helper.updateDb(accountName, index, addr.balance + addr.unBalance);
+        console.log('Not support yet');
     }
 
     async showUsingAddresses(xpub: BIP32Interface, accountName: string): Promise<void> {
-        let total = 0;
-        const using_addrs = this.helper.getUsingAddresses(accountName);
-
-        for (const a of using_addrs) {
-            const ck = xpub.derivePath(`${String(this.account)}/${a.idx}`);
-            const address = '';
-
-            const addr = await this.getAddr(address);
-            this.helper.print(this.color, `|${a.idx}|${address}|${addr.balance / this.satoshi}`);
-            total += addr.balance;
-
-            this.helper.updateDb(accountName, a.idx, addr.balance + addr.unBalance);
-        }
-
-        console.log(`Total Balance: ${total / this.satoshi}`);
+        console.log('Not support yet');
     }
 
     async createTx(): Promise<void> {
-
+        console.log('Not support yet');
     }
 
     async sign(tx: any): Promise<void> {
-        const chunks: Uint8Array[] = [];
-
-        chunks.push(this.encodeVarint(tx.version));
-        chunks.push(this.encodeVarint(tx.unlockTime));
-
-        // Serialize inputs
-        chunks.push(this.encodeVarint(tx.vin.length));
-        for (const input of tx.vin) {
-            chunks.push(new Uint8Array([0x02])); // vin tag: 0x02 for "key"
-            chunks.push(this.encodeVarint(input.keyOffsets.length));
-            for (const offset of input.keyOffsets) {
-                chunks.push(this.encodeVarint(offset));
-            }
-            chunks.push(input.keyImage);
-        }
-
-        // Serialize outputs
-        chunks.push(this.encodeVarint(tx.vout.length));
-        for (const output of tx.vout) {
-            chunks.push(this.encodeVarint(output.amount)); // 0 for RingCT
-            chunks.push(new Uint8Array([0x02])); // vout tag: 0x02 for "to_key"
-            chunks.push(output.stealthPublicKey);
-        }
-
-        // Serialize extra
-        const extraCombined = Uint8Array.from(tx.extra.flatMap(b => Array.from(b)));
-        chunks.push(this.encodeVarint(extraCombined.length));
-        chunks.push(extraCombined);
-
-        // Concatenate all
-        const totalLength = chunks.reduce((sum, c) => sum + c.length, 0);
-        const buffer = new Uint8Array(totalLength);
-        let offset = 0;
-        for (const chunk of chunks) {
-            buffer.set(chunk, offset);
-            offset += chunk.length;
-        }
-    }
-
-    private async getAddr(address: string): Promise<any> {
-        let resp = await this.helper.api.get(`https://api.whatsonchain.com/v1/bsv/main/address/${address}/confirmed/balance`);
-        const balance = resp.data['confirmed'];
-        resp = await this.helper.api.get(`https://api.whatsonchain.com/v1/bsv/main/address/${address}/unconfirmed/balance`);
-        const unBalance = resp.data['unconfirmed'];
-
-        return { balance: balance, unBalance: unBalance };
-    }
-
-    private async getUtxos(address: string): Promise<any[]> {
-        const resp = await this.helper.api.get(`https://api.whatsonchain.com/v1/bsv/main/address/${address}/confirmed/unspent`);
-        const utxos = [];
-        if (resp.data === 'Not Found') {
-            return utxos;
-        }
-        resp.data['result'].forEach(utxo => {
-            utxos.push({ txid: utxo['tx_hash'], vout: utxo['tx_pos'], value: utxo['value'] });
-        });
-
-        return utxos;
-    }
-
-    private async getFee(): Promise<number> {
-        return 1;
-    }
-
-    private encodeVarint(n: number): Uint8Array {
-        const out: number[] = [];
-        while (n >= 0x80) {
-            out.push((n & 0x7f) | 0x80);
-            n >>= 7;
-        }
-        out.push(n);
-        return new Uint8Array(out);
+        console.log('Not support yet');
     }
 
     private scReduce32(seedHex: string): string {
@@ -308,6 +207,7 @@ export class Monero implements Coin {
 
     /** Generate Monero subaddress from spend/view keys and account/index */
     private generateMoneroSubAddress(privateViewKey: string, publicSpendKey: string, publicViewKey: string, account: number, index: number): string {
+        // TODO not correct
         // no need to calculate sub address if account and index are both 0
         if (account === 0 && index === 0) {
             return this.generateMoneroAddress(publicSpendKey, publicViewKey);

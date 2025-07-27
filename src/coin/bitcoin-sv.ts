@@ -279,10 +279,7 @@ export class BitcoinSV implements Coin {
     }
 
     private getHash160Legacy(address: `1${string}`): string {
-        const val = base58.decode(address.slice(1));
-        const decimal = this.helper.uint8ArrayToBigInt(val);
-        const hex = decimal.toString(16);
-        return hex.slice(0, -8);
+        return this.helper.bs58Dec(address);
     }
     
     private getPreimage(version: string, inData: string, outData: string,
