@@ -46,9 +46,8 @@ export class Ethereum implements Coin {
         const addr = await this.getAddr(address);
         this.helper.print(this.color, `|${index}|${address}|${addr.balance / this.wei}`);
 
-        const tokens = await this.getTokens(address);
-        this.helper.print(this.color, '---------------------ERC20---------------------');
-        tokens.forEach(token => this.helper.print(this.color, `|${token.name}|${token.address}|${token.value / token.unit}`));
+        this.helper.print(this.color, '---------------------Ethereum ERC20---------------------');
+        addr.tokens.forEach(token => this.helper.print(this.color, `|${token.name}|${token.address}|${token.value / token.unit}`));
 
         this.helper.updateDb(accountName, index, addr.balance);
     }
@@ -63,7 +62,7 @@ export class Ethereum implements Coin {
             const address = this.getEthereumAddress(fullPubKey);
 
             const addr = await this.getAddr(address);
-            this.helper.print(this.color, `|${a.idx}|${address}|${addr.balance / this.wei}`);
+            this.helper.print(this.color, `|${a.idx}|${address}|${addr.balance / this.wei}|${addr.tokens.map(t => t.name).join(',')}`);
             total += addr.balance;
 
             this.helper.updateDb(accountName, a.idx, addr.balance);
@@ -102,13 +101,12 @@ export class Ethereum implements Coin {
             inBalance = addrObj.balance;
             txUint = this.wei;
         } else {
-            const tokens = await this.getTokens(inputAddr);
             const token = await select({
-                message: 'Choose ERC20 token: ', choices: tokens.map(t => {
+                message: 'Choose ERC20 token: ', choices: addrObj.tokens.map(t => {
                     return { value: t.address, name: t.name };
                 })
             });            
-            tokenObj = tokens.find(t => t.address === token);
+            tokenObj = addrObj.tokens.find(t => t.address === token);
             inBalance = tokenObj.value;
             txUint = tokenObj.unit;
         }
@@ -202,23 +200,25 @@ export class Ethereum implements Coin {
     }
 
     private async getAddr(address: string): Promise<any> {
-        let resp = await this.helper.api.get(`https://eth.blockscout.com/api/v2/addresses/${address}`);
-        const balance = resp.data['coin_balance'];
-        resp = await this.helper.api.get(`https://eth.blockscout.com/api/v2/addresses/${address}/transactions`);
-        const txs: any[] = resp.data['items'];
-        const nonce = txs.filter(t => t['from']['hash'].toLowerCase() === address.toLowerCase()).length;
-        return { balance: Number(balance), nonce: nonce };
-    }
+        const resp = await this.helper.api.get(`https://sandbox-api.3xpl.com/ethereum/address/${address}?data=balances,events&from=all&limit=1000&library=currencies`);
+        const balances = resp.data['data']['balances'];
+        const events = resp.data['data']['events']['ethereum-main'];
+        const tokenMeta = resp.data['library']['currencies'];
 
-    private async getTokens(address: string): Promise<any[]> {
+        const balance = balances['ethereum-main']['ethereum']['balance'];
         const tokens = [];
-        const resp = await this.helper.api.get(`https://eth.blockscout.com/api/v2/addresses/${address}/token-balances`);
-        for (const token of resp.data) {
-            if (token['token']['type'] === 'ERC-20') {
-                tokens.push({ name: token['token']['symbol'], address: token['token']['address'].toLowerCase(), value: Number(token['value']), unit: 10 ** Number(token['token']['decimals']) });
-            }
+
+        // calculate nonce
+        const nonce = events.filter(t => t['extra'] === null && t['effect'].startsWith('-')).length;
+
+        // fetch all ERC-20 tokens
+        const erc20Obj = balances['ethereum-erc-20'];
+        for (const token in erc20Obj) {
+            tokens.push({ name: tokenMeta[token]['symbol'], address: token.replace('ethereum-erc-20/', '').toLowerCase(),
+                 value: Number(erc20Obj[token]['balance']), unit: 10 ** Number(tokenMeta[token]['decimals']) });
         }
-        return tokens;
+
+        return { balance: Number(balance), nonce: nonce, tokens: tokens };
     }
 
     private async getFee(): Promise<number> {

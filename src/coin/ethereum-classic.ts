@@ -187,12 +187,25 @@ export class EthereumClassic implements Coin {
     }
 
     private async getAddr(address: string): Promise<any> {
-        let resp = await this.helper.api.get(`https://etc.blockscout.com/api/v2/addresses/${address}`);
-        const balance = resp.data['coin_balance'];
-        resp = await this.helper.api.get(`https://etc.blockscout.com/api/v2/addresses/${address}/transactions`);
-        const txs: any[] = resp.data['items'];
-        const nonce = txs.filter(t => t['from']['hash'].toLowerCase() === address.toLowerCase()).length;
-        return { balance: Number(balance), nonce: nonce };
+        const resp = await this.helper.api.get(`https://sandbox-api.3xpl.com/ethereum-classic/address/${address}?data=balances,events&from=all&limit=1000&library=currencies`);
+        const balances = resp.data['data']['balances'];
+        const events = resp.data['data']['events']['ethereum-classic-main'];
+        const tokenMeta = resp.data['library']['currencies'];
+
+        const balance = balances['ethereum-classic-main']['ethereum-classic']['balance'];
+        const tokens = [];
+
+        // calculate nonce
+        const nonce = events.filter(t => t['extra'] === null && t['effect'].startsWith('-')).length;
+
+        // fetch all ERC-20 tokens
+        const erc20Obj = balances['ethereum-classic-erc-20'];
+        for (const token in erc20Obj) {
+            tokens.push({ name: tokenMeta[token]['symbol'], address: token.replace('ethereum-classic-erc-20/', '').toLowerCase(),
+                 value: Number(erc20Obj[token]['balance']), unit: 10 ** Number(tokenMeta[token]['decimals']) });
+        }
+
+        return { balance: Number(balance), nonce: nonce, tokens: tokens };
     }
 
     private async getFee(): Promise<number> {
