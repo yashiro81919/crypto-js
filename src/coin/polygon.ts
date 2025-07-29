@@ -7,16 +7,16 @@ import { secp256k1 } from '@noble/curves/secp256k1';
 import { Coin } from './coin';
 import * as fs from 'fs/promises';
 
-export class EthereumClassic implements Coin {
-    code = 'ETC';
+export class Polygon implements Coin {
+    code = 'POL';
     purpose = '44';
-    coin = '61';
+    coin = '966';
     account = '0';
     change = '0';
     helper: Helper;
 
     private unit = 'gwei/gas';
-    private color = '\x1b[38;5;122m';
+    private color = '\x1b[38;5;99m';
     private wei = 10 ** 18;
     private gWei = 10 ** 9;
 
@@ -46,7 +46,11 @@ export class EthereumClassic implements Coin {
         const addr = await this.getAddr(address);
         this.helper.print(this.color, `|${index}|${address}|${addr.balance / this.wei}`);
 
-        this.helper.updateDb(accountName, index, addr.balance);
+        const tokens = await this.getTokens(address);
+        this.helper.print(this.color, '---------------------ERC20---------------------');
+        tokens.forEach(token => this.helper.print(this.color, `|${token.name}|${token.address}|${token.value / token.unit}`));
+
+        this.helper.updateDb(accountName, index, addr.balance + addr.unBalance);
     }
 
     async showUsingAddresses(xpub: BIP32Interface, accountName: string): Promise<void> {
@@ -62,7 +66,7 @@ export class EthereumClassic implements Coin {
             this.helper.print(this.color, `|${a.idx}|${address}|${addr.balance / this.wei}`);
             total += addr.balance;
 
-            this.helper.updateDb(accountName, a.idx, addr.balance);
+            this.helper.updateDb(accountName, a.idx, addr.balance + addr.unBalance);
         }
 
         console.log(`Total Balance: ${total / this.wei}`);
@@ -82,19 +86,31 @@ export class EthereumClassic implements Coin {
         let inBalance: number;
         let nonce: number;
         let txUint: number;
+        let tokenObj: any = {};
         const addrObj = await this.getAddr(inputAddr);
         nonce = addrObj.nonce;
 
         // choose transfer type
         const type = await select({
             message: 'Choose your action: ', choices: [
-                { value: 0, name: `transfer ${this.code}` }
+                { value: 0, name: `transfer ${this.code}` },
+                { value: 1, name: 'transfer ERC20 token' }
             ]
         });
-        
+
         if (type === 0) {
             inBalance = addrObj.balance;
             txUint = this.wei;
+        } else {
+            const tokens = await this.getTokens(inputAddr);
+            const token = await select({
+                message: 'Choose ERC20 token: ', choices: tokens.map(t => {
+                    return { value: t.address, name: t.name };
+                })
+            });            
+            tokenObj = tokens.find(t => t.address === token);
+            inBalance = tokenObj.value;
+            txUint = tokenObj.unit;
         }
         const inObj = { address: inputAddr, balance: inBalance };
 
@@ -111,14 +127,14 @@ export class EthereumClassic implements Coin {
         console.log('----------------------------------');
         console.log(`transaction fee: ${feeGw} ${this.unit}`);
         console.log('----------------------------------');
-        console.log(`transfer ${this.code}: ${balance}`);
+        console.log(`transfer ${type === 0 ? `${this.code}: ` : `ERC20 token [${tokenObj.name}]: `} ${balance}`);
         console.log(`input addr: ${inObj.address}`);
         console.log(`output addr: ${outObj.address}`);
         console.log('----------------------------------');
 
         const status = await confirm({ message: 'Continue to create transaction: ' });
         if (status) {
-            const tx = { coin: this.code, fee: feeW, nonce: nonce, type: type, input: inputAddr, output: outputAddr, balance: inBalance, amount: outBalance };
+            const tx = { coin: this.code, fee: feeW, nonce: nonce, type: type, token: tokenObj.address, input: inputAddr, output: outputAddr, balance: inBalance, amount: outBalance };
             fs.writeFile(this.helper.TX_FILE, JSON.stringify(tx), 'utf8');
         }
     }
@@ -137,66 +153,76 @@ export class EthereumClassic implements Coin {
         let to: string;
         let value: number;
         let txData: Uint8Array;
-        const chainId = 61n;
         if (tx['type'] === 0) {
             to = this.helper.strip0x(tx['output']);
             const surplus = tx['amount'] + feeW - tx['balance'];
             value = surplus > 0 ? tx['amount'] - surplus : tx['amount'];
             txData = new Uint8Array([]);
+        } else {
+            to = this.helper.strip0x(tx['token']);
+            value = 0;
+            txData = Buffer.from(this.helper.strip0x(this.encodeERC20Transfer(tx['output'], tx['amount'])), 'hex');
         }
 
-        const commonTx = [
+        const unsignedTx = [
+            137n, // chainId
             tx['nonce'],  // nonce
-            tx['fee'], // gasPrice
+            tx['fee'] , // maxPriorityFeePerGas
+            tx['fee'] , // maxFeePerGas
             gas,  // gasLimit
             Buffer.from(to, 'hex'), // to address
             value,  // value
-            txData  // data
-        ];
-
-        const unsignedTx = [
-            ...commonTx,
-            chainId, // chainId
-            new Uint8Array([]), // empty r
-            new Uint8Array([]) // empty s
+            txData,  // data
+            [] // accessList (empty list)
         ];
 
         const rlpEncoded = rlpEncode(unsignedTx);
-        const messageHash = keccak_256(rlpEncoded);
+        const message = new Uint8Array([0x02, ...rlpEncoded]);
+        const messageHash = keccak_256(message);
         const privateKey = this.helper.strip0x(pk);
 
         const rawSignature = secp256k1.sign(messageHash, privateKey, { lowS: true }); // sig is 64 bytes, recoveryId is v
 
         const r = rawSignature.r;
         const s = rawSignature.s;
-        // EIP-155 v calculation
-        const v = BigInt(rawSignature.recovery) + 35n + BigInt(chainId) * 2n;
+        const v = rawSignature.recovery; // 0 or 1
 
         const signedTx = [
-            ...commonTx,
-            v, // v
+            ...unsignedTx,
+            v, // v (recovery id: 0 or 1)
             r, // r
             s // s
         ];
 
         const signedRlp = rlpEncode(signedTx);
-        const raw = `0x${Buffer.from(signedRlp).toString('hex')}`; // EIP-155 format
+        const raw = `0x02${Buffer.from(signedRlp).toString('hex')}`; // EIP-1559 tx prefix is 0x02
 
         fs.writeFile(this.helper.SIG_TX_FILE, raw, 'utf8');
         console.log(raw);
     }
 
     private async getAddr(address: string): Promise<any> {
-        let resp = await this.helper.api.get(`https://etc.blockscout.com/api/v2/addresses/${address}`);
+        let resp = await this.helper.api.get(`https://polygon.blockscout.com/api/v2/addresses/${address}`);
         const balance = resp.data['coin_balance'];
-        resp = await this.helper.api.get(`https://etc.blockscout.com/api/v2/addresses/${address}/transactions`);
+        resp = await this.helper.api.get(`https://polygon.blockscout.com/api/v2/addresses/${address}/transactions`);
         const txs: any[] = resp.data['items'];
         const nonce = txs.filter(t => t['from']['hash'].toLowerCase() === address.toLowerCase()).length;
         return { balance: Number(balance), nonce: nonce };
     }
 
+    private async getTokens(address: string): Promise<any[]> {
+        const tokens = [];
+        const resp = await this.helper.api.get(`https://polygon.blockscout.com/api/v2/addresses/${address}/token-balances`);
+        for (const token of resp.data) {
+            if (token['token']['type'] === 'ERC-20') {
+                tokens.push({ name: token['token']['symbol'], address: token['token']['address'].toLowerCase(), value: Number(token['value']), unit: 10 ** Number(token['token']['decimals']) });
+            }
+        }
+        return tokens;
+    }
+
     private async getFee(): Promise<number> {
-        const resp = await this.helper.api.get(`https://etc.blockscout.com/api/v2/stats`);
+        const resp = await this.helper.api.get(`https://polygon.blockscout.com/api/v2/stats`);
         return resp.data['gas_prices']['average'];
     }
 
@@ -211,7 +237,18 @@ export class EthereumClassic implements Coin {
         let size: number;
         if (tx.type === 0) {
             size = 21000;
+        } else {
+            // ERC20 transfer
+            size = 100000;
         }
         return size;
+    }
+
+    private encodeERC20Transfer(to: string, amount: bigint): string {
+        const methodId = 'a9059cbb'; // (first 4 bytes of keccak256("transfer(address,uint256)"))
+        const toClean = this.helper.strip0x(to).toLowerCase();
+        const paddedTo = toClean.padStart(64, '0');
+        const paddedAmount = amount.toString(16).padStart(64, '0');
+        return '0x' + methodId + paddedTo + paddedAmount;
     }
 }

@@ -93,7 +93,7 @@ export class Ethereum implements Coin {
         // choose transfer type
         const type = await select({
             message: 'Choose your action: ', choices: [
-                { value: 0, name: 'transfer Ethereum' },
+                { value: 0, name: `transfer ${this.code}` },
                 { value: 1, name: 'transfer ERC20 token' }
             ]
         });
@@ -110,7 +110,7 @@ export class Ethereum implements Coin {
             });            
             tokenObj = tokens.find(t => t.address === token);
             inBalance = tokenObj.value;
-            txUint = 10 ** tokenObj.unit;
+            txUint = tokenObj.unit;
         }
         const inObj = { address: inputAddr, balance: inBalance };
 
@@ -127,7 +127,7 @@ export class Ethereum implements Coin {
         console.log('----------------------------------');
         console.log(`transaction fee: ${feeGw} ${this.unit}`);
         console.log('----------------------------------');
-        console.log(`transfer ${type === 0 ? 'Ethereum: ' : `ERC20 token [${tokenObj.name}]: `} ${balance}`);
+        console.log(`transfer ${type === 0 ? `${this.code}: ` : `ERC20 token [${tokenObj.name}]: `} ${balance}`);
         console.log(`input addr: ${inObj.address}`);
         console.log(`output addr: ${outObj.address}`);
         console.log('----------------------------------');
@@ -215,7 +215,7 @@ export class Ethereum implements Coin {
         const resp = await this.helper.api.get(`https://eth.blockscout.com/api/v2/addresses/${address}/token-balances`);
         for (const token of resp.data) {
             if (token['token']['type'] === 'ERC-20') {
-                tokens.push({ name: token['token']['symbol'], address: token['token']['address'].toLowerCase(), value: Number(token['value']), unit: Number(token['token']['decimals']) });
+                tokens.push({ name: token['token']['symbol'], address: token['token']['address'].toLowerCase(), value: Number(token['value']), unit: 10 ** Number(token['token']['decimals']) });
             }
         }
         return tokens;
@@ -236,7 +236,6 @@ export class Ethereum implements Coin {
     private calcGas(tx: any): number {
         let size: number;
         if (tx.type === 0) {
-            // Ethereum transfer
             size = 21000;
         } else {
             // ERC20 transfer

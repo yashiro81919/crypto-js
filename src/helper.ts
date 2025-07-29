@@ -14,6 +14,7 @@ import { BitcoinCash } from './coin/bitcoin-cash';
 import { Ethereum } from './coin/ethereum';
 import { EthereumClassic } from './coin/ethereum-classic';
 import { Dogecoin } from './coin/dogecoin';
+import { Polygon } from './coin/polygon';
 
 export class Helper {
 
@@ -30,6 +31,7 @@ export class Helper {
         this.coinRegistry.push(new Dogecoin(this));
         this.coinRegistry.push(new BitcoinCash(this));
         this.coinRegistry.push(new EthereumClassic(this));
+        this.coinRegistry.push(new Polygon(this));
         this.coinRegistry.push(new BitcoinSV(this));
     }
 
