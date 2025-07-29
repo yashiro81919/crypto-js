@@ -50,7 +50,7 @@ export class Ethereum implements Coin {
         this.helper.print(this.color, '---------------------ERC20---------------------');
         tokens.forEach(token => this.helper.print(this.color, `|${token.name}|${token.address}|${token.value / token.unit}`));
 
-        this.helper.updateDb(accountName, index, addr.balance + addr.unBalance);
+        this.helper.updateDb(accountName, index, addr.balance);
     }
 
     async showUsingAddresses(xpub: BIP32Interface, accountName: string): Promise<void> {
@@ -66,7 +66,7 @@ export class Ethereum implements Coin {
             this.helper.print(this.color, `|${a.idx}|${address}|${addr.balance / this.wei}`);
             total += addr.balance;
 
-            this.helper.updateDb(accountName, a.idx, addr.balance + addr.unBalance);
+            this.helper.updateDb(accountName, a.idx, addr.balance);
         }
 
         console.log(`Total Balance: ${total / this.wei}`);
