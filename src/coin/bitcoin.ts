@@ -22,8 +22,6 @@ export class Bitcoin implements Coin {
         this.helper = helper;
     }
 
-    init(): void { }
-
     showKeyInfo(root: BIP32Interface, index: string): void {
         const child = root.derivePath(`m/${this.purpose}'/${this.coin}'/${this.account}'/${this.change}/${index}`);
 
@@ -110,6 +108,10 @@ export class Bitcoin implements Coin {
 
             const outputAddr = { address: addr, balance: realBal };
             outputAddrs.push(outputAddr);
+
+            if (totalInput === totalOutput) {
+                break;
+            }
 
             const status = await confirm({ message: 'Continue to add output address: ' });
             if (!status) {

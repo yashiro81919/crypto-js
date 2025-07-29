@@ -14,8 +14,6 @@ import { BitcoinCash } from './coin/bitcoin-cash';
 import { Ethereum } from './coin/ethereum';
 import { EthereumClassic } from './coin/ethereum-classic';
 import { Dogecoin } from './coin/dogecoin';
-import { Monero } from './coin/monero';
-import { Tron } from './coin/tron';
 
 export class Helper {
 
@@ -29,12 +27,10 @@ export class Helper {
     constructor() {
         this.coinRegistry.push(new Bitcoin(this));
         this.coinRegistry.push(new Ethereum(this));
-        this.coinRegistry.push(new BitcoinSV(this));
+        this.coinRegistry.push(new Dogecoin(this));
         this.coinRegistry.push(new BitcoinCash(this));
         this.coinRegistry.push(new EthereumClassic(this));
-        this.coinRegistry.push(new Dogecoin(this));
-        this.coinRegistry.push(new Monero(this));
-        this.coinRegistry.push(new Tron(this));
+        this.coinRegistry.push(new BitcoinSV(this));
     }
 
     async initResource(): Promise<void> {
@@ -64,10 +60,6 @@ export class Helper {
             config.httpsAgent = agent;
             this.api = axios.create(config);
         }
-
-        this.coinRegistry.forEach(c => {
-            c.init();
-        });
     }
 
     isFloat(value: string): boolean {

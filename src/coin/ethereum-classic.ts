@@ -24,8 +24,6 @@ export class EthereumClassic implements Coin {
         this.helper = helper;
     }
 
-    init(): void { }
-
     showKeyInfo(root: BIP32Interface, index: string): void {
         const child = root.derivePath(`m/${this.purpose}'/${this.coin}'/${this.account}'/${this.change}/${index}`);
 
@@ -48,7 +46,7 @@ export class EthereumClassic implements Coin {
         const addr = await this.getAddr(address);
         this.helper.print(this.color, `|${index}|${address}|${addr.balance / this.wei}`);
 
-        this.helper.updateDb(accountName, index, addr.balance + addr.unBalance);
+        this.helper.updateDb(accountName, index, addr.balance);
     }
 
     async showUsingAddresses(xpub: BIP32Interface, accountName: string): Promise<void> {
@@ -64,7 +62,7 @@ export class EthereumClassic implements Coin {
             this.helper.print(this.color, `|${a.idx}|${address}|${addr.balance / this.wei}`);
             total += addr.balance;
 
-            this.helper.updateDb(accountName, a.idx, addr.balance + addr.unBalance);
+            this.helper.updateDb(accountName, a.idx, addr.balance);
         }
 
         console.log(`Total Balance: ${total / this.wei}`);
@@ -79,13 +77,6 @@ export class EthereumClassic implements Coin {
         feeGw = Number(newFee);
         feeW = (feeGw * this.wei) / this.gWei;
 
-        // choose transfer type
-        const type = await select({
-            message: 'Choose your action: ', choices: [
-                { value: 0, name: 'transfer Ethereum Classic' }
-            ]
-        });
-
         // add input address
         const inputAddr = await input({ message: 'Type input address: ', required: true });
         let inBalance: number;
@@ -93,6 +84,14 @@ export class EthereumClassic implements Coin {
         let txUint: number;
         const addrObj = await this.getAddr(inputAddr);
         nonce = addrObj.nonce;
+
+        // choose transfer type
+        const type = await select({
+            message: 'Choose your action: ', choices: [
+                { value: 0, name: 'transfer Ethereum Classic' }
+            ]
+        });
+        
         if (type === 0) {
             inBalance = addrObj.balance;
             txUint = this.wei;
@@ -190,11 +189,10 @@ export class EthereumClassic implements Coin {
     private async getAddr(address: string): Promise<any> {
         let resp = await this.helper.api.get(`https://etc.blockscout.com/api/v2/addresses/${address}`);
         const balance = resp.data['coin_balance'];
-        const unBalance = 0;
         resp = await this.helper.api.get(`https://etc.blockscout.com/api/v2/addresses/${address}/transactions`);
         const txs: any[] = resp.data['items'];
         const nonce = txs.filter(t => t['from']['hash'].toLowerCase() === address.toLowerCase()).length;
-        return { balance: Number(balance), unBalance: unBalance, nonce: nonce };
+        return { balance: Number(balance), nonce: nonce };
     }
 
     private async getFee(): Promise<number> {

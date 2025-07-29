@@ -4,7 +4,6 @@ import { BIP32Interface } from 'bip32';
 import { secp256k1 } from '@noble/curves/secp256k1';
 import { Coin } from './coin';
 import * as fs from 'fs/promises';
-
 export class Dogecoin implements Coin {
     code = 'DOGE';
     purpose = '44';
@@ -20,8 +19,6 @@ export class Dogecoin implements Coin {
     constructor(helper: Helper) {
         this.helper = helper;
     }
-
-    init(): void { }
 
     showKeyInfo(root: BIP32Interface, index: string): void {
         const child = root.derivePath(`m/${this.purpose}'/${this.coin}'/${this.account}'/${this.change}/${index}`);
@@ -109,6 +106,10 @@ export class Dogecoin implements Coin {
 
             const outputAddr = { address: addr, balance: realBal };
             outputAddrs.push(outputAddr);
+
+            if (totalInput === totalOutput) {
+                break;
+            }            
 
             const status = await confirm({ message: 'Continue to add output address: ' });
             if (!status) {

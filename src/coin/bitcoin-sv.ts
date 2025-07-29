@@ -1,5 +1,4 @@
 import { input, confirm } from '@inquirer/prompts';
-import { base58 } from '@scure/base';
 import { Helper } from '../helper';
 import { BIP32Interface } from 'bip32';
 import { secp256k1 } from '@noble/curves/secp256k1';
@@ -20,9 +19,7 @@ export class BitcoinSV implements Coin {
 
     constructor(helper: Helper) {
         this.helper = helper;
-    }
-
-    init(): void {}     
+    } 
 
     showKeyInfo(root: BIP32Interface, index: string): void {
         const child = root.derivePath(`m/${this.purpose}'/${this.coin}'/${this.account}'/${this.change}/${index}`);
@@ -110,6 +107,10 @@ export class BitcoinSV implements Coin {
 
             const outputAddr = { address: addr, balance: realBal };
             outputAddrs.push(outputAddr);
+
+            if (totalInput === totalOutput) {
+                break;
+            }            
 
             const status = await confirm({ message: 'Continue to add output address: ' });
             if (!status) {
