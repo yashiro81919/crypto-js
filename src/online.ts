@@ -2,12 +2,12 @@ import { input, select } from '@inquirer/prompts';
 import { BIP32Factory, BIP32Interface } from 'bip32';
 import * as ecc from '@bitcoinerlab/secp256k1';
 import { Helper } from './helper';
-import { Coin } from './coin/coin';
+import { Blockchain } from './chain/blockchain';
 
 // this script should be deployed on online device for monitoring your accounts
 // accounts are saved in table t_account
 const bip32 = BIP32Factory(ecc);
-let coin: Coin;
+let blockchain: Blockchain;
 let accountName: string;
 let helper: Helper;
 
@@ -19,7 +19,7 @@ async function chooseAccount(dbAccounts: any[]): Promise<BIP32Interface> {
     });
     const row = dbAccounts.find(d => d.name === accountName);
     const xpub_key = row.pub_key;
-    coin = helper.getCoinInstance(row.coin);
+    blockchain = helper.getBlockchain(row.coin_type);
 
     const node = bip32.fromBase58(xpub_key);
 
@@ -32,7 +32,7 @@ async function account(): Promise<void> {
     let xpub = await chooseAccount(rows);
     while (true) {
         console.log("----------------------------------");
-        console.log(`Current account is: [${accountName}]`);
+        console.log(`Current account is: [${accountName}] | Blockchain is: [${blockchain.chain}]`);
         console.log("----------------------------------");
 
         const step = await select({
@@ -45,10 +45,10 @@ async function account(): Promise<void> {
         });
 
         if (step === 0) {
-            await coin.showUsingAddresses(xpub, accountName);
+            await blockchain.showUsingAddresses(xpub, accountName);
         } else if (step === 1) {
             const index = await input({ message: 'Index: ', required: true, validate: helper.isInteger });
-            await coin.showAddressDetail(xpub, accountName, index);
+            await blockchain.showAddressDetail(xpub, accountName, index);
         } else if (step === 2) {
             xpub = await chooseAccount(rows);
         } else if (step === 3) {
@@ -61,8 +61,8 @@ async function account(): Promise<void> {
 // this script should be deployed on online device for creating transaction data
 // transaction file will be in current folder and the name is tx
 async function createTx(): Promise<void> {
-    coin = await helper.chooseCoin();
-    coin.createTx();
+    blockchain = await helper.chooseChain();
+    blockchain.createTx();
 }
 
 async function main(): Promise<void> {

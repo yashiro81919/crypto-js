@@ -5,13 +5,13 @@ import { Helper } from './helper';
 import * as bip39 from 'bip39';
 import { BIP32Factory, BIP32Interface } from 'bip32';
 import * as ecc from '@bitcoinerlab/secp256k1';
-import { Coin } from './coin/coin';
+import { Blockchain } from './chain/blockchain';
 
 const bip32 = BIP32Factory(ecc);
 const seedFilePath = 'seed';
 const newSeedfilePath = 'new_seed';
 const masterPublicFilePath = 'public';
-let coin: Coin;
+let blockchain: Blockchain;
 let mnemonic: string;
 let helper: Helper;
 
@@ -20,18 +20,18 @@ async function getKey(): Promise<BIP32Interface> {
     const seed = bip39.mnemonicToSeedSync(mnemonic, pass);
     const root = bip32.fromSeed(seed);
 
-    const pub = root.derivePath('m/' + coin.purpose + '\'/' + coin.coin + '\'/' + coin.account + '\'');
+    const pub = root.derivePath('m/' + blockchain.purpose + '\'/' + blockchain.coin + '\'/' + blockchain.account + '\'');
     fs.writeFile(masterPublicFilePath, pub.neutered().toBase58(), 'utf8');
     return root;
 }
 
 async function searchIndex(root: BIP32Interface): Promise<void> {
     const index = await input({ message: 'Index: ', required: true, validate: helper.isInteger });
-    await coin.showKeyInfo(root, index);
+    await blockchain.showKeyInfo(root, index);
 }
 
 async function changeAccount(): Promise<BIP32Interface> {
-    coin = await helper.chooseCoin();
+    blockchain = await helper.chooseChain();
     return getKey();
 }
 
@@ -82,11 +82,11 @@ async function account(): Promise<void> {
 async function sign(): Promise<void> {
     const data = await fs.readFile(helper.TX_FILE, 'utf8');
     const tx = JSON.parse(data);
-    const coin = helper.getCoinInstance(tx['coin']);
+    const blockchain = helper.getBlockchain(tx['coin']);
     console.log("----------------------------------");
-    console.log(`Current coin is: [${tx['coin']}]`);
+    console.log(`Current Blockchain is: [${blockchain.chain}]`);
     console.log("----------------------------------");
-    coin.sign(tx);
+    blockchain.sign(tx);
 }
 
 async function main(): Promise<void> {

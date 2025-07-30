@@ -2,24 +2,25 @@ import { input, confirm } from '@inquirer/prompts';
 import { Helper } from '../helper';
 import { BIP32Interface } from 'bip32';
 import { secp256k1 } from '@noble/curves/secp256k1';
-import { Coin } from './coin';
+import { Blockchain } from './blockchain';
 import * as fs from 'fs/promises';
 
-export class BitcoinCash implements Coin {
-    code = 'BCH';
+export class BitcoinSV implements Blockchain {
+    chain = 'Bitcoin SV';
+    token = 'BSV';    
     purpose = '44';
-    coin = '145';
+    coin = '236';
     account = '0';
     change = '0';
     helper: Helper;
 
     private unit = 'sat/byte';
-    private color = '\x1b[38;5;154m';
+    private color = '\x1b[38;5;220m';
     private satoshi = 10 ** 8;
 
     constructor(helper: Helper) {
         this.helper = helper;
-    }  
+    } 
 
     showKeyInfo(root: BIP32Interface, index: string): void {
         const child = root.derivePath(`m/${this.purpose}'/${this.coin}'/${this.account}'/${this.change}/${index}`);
@@ -137,7 +138,7 @@ export class BitcoinCash implements Coin {
 
         const status = await confirm({ message: 'Continue to create transaction: ' });
         if (status) {
-            const tx = { coin: this.code, fee: feeVb, inputs: [], outputs: [] };
+            const tx = { coin: this.coin, fee: feeVb, inputs: [], outputs: [] };
 
             // create input from utxos
             for (const addr of inputAddrs) {
@@ -170,7 +171,7 @@ export class BitcoinCash implements Coin {
         const fee = Math.ceil(size * tx['fee']); // calculated fee
 
         console.log('----------------------------------');
-        console.log(`calculated fee: ${fee / this.satoshi} ${this.code}`);
+        console.log(`calculated fee: ${fee / this.satoshi} ${this.token}`);
         console.log(`size: ${size} bytes`);
         console.log('----------------------------------');
 
@@ -197,7 +198,7 @@ export class BitcoinCash implements Coin {
 
         raw += this.helper.getCompactSize(tx['inputs'].length); // inputcount
         let inData = '';
-        let seqs = '';
+        let seqs = '';        
         const sequence = 'fdffffff'; // sequence, enable RBF
         for (const input of tx['inputs']) {
             const txId = this.helper.hexToLE(input['txid']); // txid, must be Reverse Byte Order
@@ -245,26 +246,30 @@ export class BitcoinCash implements Coin {
 
         fs.writeFile(this.helper.SIG_TX_FILE, raw, 'utf8');
         console.log(raw);
-    }     
+    }
 
     private async getAddr(address: string): Promise<any> {
-        const resp = await this.helper.api.get(`https://api.fullstack.cash/v5/electrumx/balance/${address}`);
-        const balance = resp.data['balance']['confirmed'];
-        const unBalance = resp.data['balance']['unconfirmed'];
+        let resp = await this.helper.api.get(`https://api.whatsonchain.com/v1/bsv/main/address/${address}/confirmed/balance`);
+        const balance = resp.data['confirmed'];
+        resp = await this.helper.api.get(`https://api.whatsonchain.com/v1/bsv/main/address/${address}/unconfirmed/balance`);
+        const unBalance = resp.data['unconfirmed'];
 
         return { balance: balance, unBalance: unBalance };
     }
-
+    
     private async getUtxos(address: string): Promise<any[]> {
-        const resp = await this.helper.api.get(`https://api.fullstack.cash/v5/electrumx/utxos/${address}`);
+        const resp = await this.helper.api.get(`https://api.whatsonchain.com/v1/bsv/main/address/${address}/confirmed/unspent`);
         const utxos = [];
-        resp.data['utxos'].forEach(utxo => {
+        if (resp.data === 'Not Found') {
+            return utxos;
+        }
+        resp.data['result'].forEach(utxo => {
             utxos.push({ txid: utxo['tx_hash'], vout: utxo['tx_pos'], value: utxo['value'] });
         });
 
         return utxos;
     }
-
+    
     private async getFee(): Promise<number> {
         return 1;
     }
@@ -278,9 +283,9 @@ export class BitcoinCash implements Coin {
     private getHash160Legacy(address: `1${string}`): string {
         return this.helper.bs58Dec(address);
     }
-
+    
     private getPreimage(version: string, inData: string, outData: string,
-        seqs: string, sequence: string, locktime: string, input: any[]): Buffer<ArrayBuffer> {
+         seqs: string, sequence: string, locktime: string, input: any[]): Buffer<ArrayBuffer> {
         let preimage = '';
         // Grab the version field
         preimage += version;
@@ -307,17 +312,15 @@ export class BitcoinCash implements Coin {
         preimage = this.helper.hash256(preimage);
 
         return Buffer.from(preimage, 'hex');
-    }
-
-    private calcSize(tx: any): number {
+    }    
+    
+    private calcSize(tx : any): number {
         let size = 4; // Version
-        const inputTotal = this.helper.getCompactSize(tx['inputs'].length);
+        const inputTotal = this.helper.getCompactSize(tx['inputs'].length); 
         size += tx['inputs'].length * ((inputTotal.length / 2) + 32 + 4 + 1 + (1 + 72 + 1 + 33) + 4);
-        const outputTotal = this.helper.getCompactSize(tx['outputs'].length);
+        const outputTotal = this.helper.getCompactSize(tx['outputs'].length); 
         size += tx['outputs'].length * ((outputTotal.length / 2) + 8 + 1 + 25);
         size += 4; // locktime
         return size;
-    }
-
-
+    }    
 }

@@ -1,7 +1,8 @@
 import { BIP32Interface } from "bip32";
 
-export interface Coin {
-    code: string;
+export interface Blockchain {
+    chain: string;
+    token: string;
     purpose: string;
     coin: string;
     account: string;

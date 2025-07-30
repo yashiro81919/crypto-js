@@ -4,11 +4,12 @@ import { Helper } from '../helper';
 import { BIP32Interface } from 'bip32';
 import { keccak_256 } from '@noble/hashes/sha3';
 import { secp256k1 } from '@noble/curves/secp256k1';
-import { Coin } from './coin';
+import { Blockchain } from './blockchain';
 import * as fs from 'fs/promises';
 
-export class EthereumClassic implements Coin {
-    code = 'ETC';
+export class EthereumClassic implements Blockchain {
+    chain = 'Ethereum Classic';
+    token = 'ETC';    
     purpose = '44';
     coin = '61';
     account = '0';
@@ -88,7 +89,7 @@ export class EthereumClassic implements Coin {
         // choose transfer type
         const type = await select({
             message: 'Choose your action: ', choices: [
-                { value: 0, name: `transfer ${this.code}` }
+                { value: 0, name: `transfer ${this.token}` }
             ]
         });
         
@@ -111,14 +112,14 @@ export class EthereumClassic implements Coin {
         console.log('----------------------------------');
         console.log(`transaction fee: ${feeGw} ${this.unit}`);
         console.log('----------------------------------');
-        console.log(`transfer ${this.code}: ${balance}`);
+        console.log(`transfer ${this.token}: ${balance}`);
         console.log(`input addr: ${inObj.address}`);
         console.log(`output addr: ${outObj.address}`);
         console.log('----------------------------------');
 
         const status = await confirm({ message: 'Continue to create transaction: ' });
         if (status) {
-            const tx = { coin: this.code, fee: feeW, nonce: nonce, type: type, input: inputAddr, output: outputAddr, balance: inBalance, amount: outBalance };
+            const tx = { coin: this.coin, fee: feeW, nonce: nonce, type: type, input: inputAddr, output: outputAddr, balance: inBalance, amount: outBalance };
             fs.writeFile(this.helper.TX_FILE, JSON.stringify(tx), 'utf8');
         }
     }
@@ -128,7 +129,7 @@ export class EthereumClassic implements Coin {
         const feeW = gas * tx['fee'];
 
         console.log('----------------------------------');
-        console.log(`calculated network fee: ${feeW / this.wei} ${this.code}`);
+        console.log(`calculated network fee: ${feeW / this.wei} ${this.token}`);
         console.log(`gas: ${gas}`);
         console.log('----------------------------------');
 

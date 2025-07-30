@@ -7,32 +7,36 @@ import { Database } from 'better-sqlite3';
 import DatabaseInstance = require('better-sqlite3');
 import { SocksProxyAgent } from 'socks-proxy-agent';
 import { aes256gcmDecode } from './aes';
-import { Coin } from './coin/coin';
-import { Bitcoin } from './coin/bitcoin';
-import { BitcoinSV } from './coin/bitcoin-sv';
-import { BitcoinCash } from './coin/bitcoin-cash';
-import { Ethereum } from './coin/ethereum';
-import { EthereumClassic } from './coin/ethereum-classic';
-import { Dogecoin } from './coin/dogecoin';
-import { Polygon } from './coin/polygon';
+import { Blockchain } from './chain/blockchain';
+import { Bitcoin } from './chain/bitcoin';
+import { BitcoinSV } from './chain/bitcoin-sv';
+import { BitcoinCash } from './chain/bitcoin-cash';
+import { Ethereum } from './chain/ethereum';
+import { EthereumClassic } from './chain/ethereum-classic';
+import { Dogecoin } from './chain/dogecoin';
+import { Polygon } from './chain/polygon';
+import { Optimism } from './chain/optimism';
+import { Arbitrum } from './chain/arbitrum';
 
 export class Helper {
 
     api: AxiosInstance;
-    coinRegistry: Coin[] = [];
+    chainRegistry: Blockchain[] = [];
     DB_FILE = 'acc.db';
     TX_FILE = 'tx';
     SIG_TX_FILE = 'sigtx';
     db: Database;
 
     constructor() {
-        this.coinRegistry.push(new Bitcoin(this));
-        this.coinRegistry.push(new Ethereum(this));
-        this.coinRegistry.push(new Dogecoin(this));
-        this.coinRegistry.push(new BitcoinCash(this));
-        this.coinRegistry.push(new EthereumClassic(this));
-        this.coinRegistry.push(new Polygon(this));
-        this.coinRegistry.push(new BitcoinSV(this));
+        this.chainRegistry.push(new Bitcoin(this));
+        this.chainRegistry.push(new Ethereum(this));
+        this.chainRegistry.push(new Dogecoin(this));
+        this.chainRegistry.push(new BitcoinCash(this));
+        this.chainRegistry.push(new EthereumClassic(this));
+        this.chainRegistry.push(new Arbitrum(this));
+        this.chainRegistry.push(new Polygon(this));
+        this.chainRegistry.push(new Optimism(this));
+        this.chainRegistry.push(new BitcoinSV(this));
     }
 
     async initResource(): Promise<void> {
@@ -76,25 +80,22 @@ export class Helper {
         return !isNaN(num) && Number.isInteger(num);
     }
 
-    async chooseCoin(): Promise<Coin> {
-        const coins = [];
-        this.coinRegistry.forEach(c => {
-            coins.push(c.code);
-        });
-
-        const coinName: string = await select({
-            message: 'Choose coin: ', choices: coins
+    async chooseChain(): Promise<Blockchain> {
+        const blockchain: Blockchain = await select({
+            message: 'Choose Blockchain: ', choices: this.chainRegistry.map(t => {
+                return { value: t, name: t.chain };
+            })
         });
 
         console.log('----------------------------------');
-        console.log(`Current coin is: [${coinName}]`);
+        console.log(`Current Blockchain is: [${blockchain.chain}]`);
         console.log('----------------------------------');
 
-        return this.getCoinInstance(coinName);
+        return blockchain;
     }
 
-    getCoinInstance(coinName: string): Coin {
-        return this.coinRegistry.find(c => c.code === coinName);
+    getBlockchain(coinType: string): Blockchain {
+        return this.chainRegistry.find(c => c.coin === coinType);
     }
 
     getAPIKey(name: string): string {

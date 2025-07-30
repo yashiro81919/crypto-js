@@ -4,19 +4,20 @@ import { Helper } from '../helper';
 import { BIP32Interface } from 'bip32';
 import { keccak_256 } from '@noble/hashes/sha3';
 import { secp256k1 } from '@noble/curves/secp256k1';
-import { Coin } from './coin';
+import { Blockchain } from './blockchain';
 import * as fs from 'fs/promises';
 
-export class Polygon implements Coin {
-    code = 'POL';
+export class Ethereum implements Blockchain {
+    chain = 'Ethereum';
+    token = 'ETH';        
     purpose = '44';
-    coin = '966';
+    coin = '60';
     account = '0';
     change = '0';
     helper: Helper;
 
     private unit = 'gwei/gas';
-    private color = '\x1b[38;5;99m';
+    private color = '\x1b[38;5;103m';
     private wei = 10 ** 18;
     private gWei = 10 ** 9;
 
@@ -46,7 +47,7 @@ export class Polygon implements Coin {
         const addr = await this.getAddr(address);
         this.helper.print(this.color, `|${index}|${address}|${addr.balance / this.wei}`);
 
-        this.helper.print(this.color, '---------------------Polygon ERC20---------------------');
+        this.helper.print(this.color, '---------------------Ethereum ERC20---------------------');
         addr.tokens.forEach(token => this.helper.print(this.color, `|${token.name}|${token.address}|${token.value / token.unit}`));
 
         this.helper.updateDb(accountName, index, addr.balance);
@@ -92,7 +93,7 @@ export class Polygon implements Coin {
         // choose transfer type
         const type = await select({
             message: 'Choose your action: ', choices: [
-                { value: 0, name: `transfer ${this.code}` },
+                { value: 0, name: `transfer ${this.token}` },
                 { value: 1, name: 'transfer ERC20 token' }
             ]
         });
@@ -102,11 +103,11 @@ export class Polygon implements Coin {
             txUint = this.wei;
         } else {
             const token = await select({
-                message: 'Choose ERC20 token: ', choices:  addrObj.tokens.map(t => {
+                message: 'Choose ERC20 token: ', choices: addrObj.tokens.map(t => {
                     return { value: t.address, name: t.name };
                 })
             });            
-            tokenObj =  addrObj.tokens.find(t => t.address === token);
+            tokenObj = addrObj.tokens.find(t => t.address === token);
             inBalance = tokenObj.value;
             txUint = tokenObj.unit;
         }
@@ -125,14 +126,14 @@ export class Polygon implements Coin {
         console.log('----------------------------------');
         console.log(`transaction fee: ${feeGw} ${this.unit}`);
         console.log('----------------------------------');
-        console.log(`transfer ${type === 0 ? `${this.code}: ` : `ERC20 token [${tokenObj.name}]: `} ${balance}`);
+        console.log(`transfer ${type === 0 ? `${this.token}: ` : `ERC20 token [${tokenObj.name}]: `} ${balance}`);
         console.log(`input addr: ${inObj.address}`);
         console.log(`output addr: ${outObj.address}`);
         console.log('----------------------------------');
 
         const status = await confirm({ message: 'Continue to create transaction: ' });
         if (status) {
-            const tx = { coin: this.code, fee: feeW, nonce: nonce, type: type, token: tokenObj.address, input: inputAddr, output: outputAddr, balance: inBalance, amount: outBalance };
+            const tx = { coin: this.coin, fee: feeW, nonce: nonce, type: type, token: tokenObj.address, input: inputAddr, output: outputAddr, balance: inBalance, amount: outBalance };
             fs.writeFile(this.helper.TX_FILE, JSON.stringify(tx), 'utf8');
         }
     }
@@ -142,7 +143,7 @@ export class Polygon implements Coin {
         const feeW = gas * tx['fee'];
 
         console.log('----------------------------------');
-        console.log(`calculated network fee: ${feeW / this.wei} ${this.code}`);
+        console.log(`calculated network fee: ${feeW / this.wei} ${this.token}`);
         console.log(`gas: ${gas}`);
         console.log('----------------------------------');
 
@@ -163,7 +164,7 @@ export class Polygon implements Coin {
         }
 
         const unsignedTx = [
-            137n, // chainId
+            1n, // chainId
             tx['nonce'],  // nonce
             tx['fee'] , // maxPriorityFeePerGas
             tx['fee'] , // maxFeePerGas
@@ -200,21 +201,21 @@ export class Polygon implements Coin {
     }
 
     private async getAddr(address: string): Promise<any> {
-        const resp = await this.helper.api.get(`https://sandbox-api.3xpl.com/polygon/address/${address}?data=balances,events&from=all&limit=1000&library=currencies`);
+        const resp = await this.helper.api.get(`https://sandbox-api.3xpl.com/ethereum/address/${address}?data=balances,events&from=all&limit=1000&library=currencies`);
         const balances = resp.data['data']['balances'];
-        const events = resp.data['data']['events']['polygon-main'];
+        const events = resp.data['data']['events']['ethereum-main'];
         const tokenMeta = resp.data['library']['currencies'];
 
-        const balance = balances['polygon-main']['matic']['balance'];
+        const balance = balances['ethereum-main']['ethereum']['balance'];
         const tokens = [];
 
         // calculate nonce
         const nonce = events.filter(t => t['extra'] === null && t['effect'].startsWith('-')).length;
 
         // fetch all ERC-20 tokens
-        const erc20Obj = balances['polygon-erc-20'];
+        const erc20Obj = balances['ethereum-erc-20'];
         for (const token in erc20Obj) {
-            tokens.push({ name: tokenMeta[token]['symbol'], address: token.replace('polygon-erc-20/', '').toLowerCase(),
+            tokens.push({ name: tokenMeta[token]['symbol'], address: token.replace('ethereum-erc-20/', '').toLowerCase(),
                  value: Number(erc20Obj[token]['balance']), unit: 10 ** Number(tokenMeta[token]['decimals']) });
         }
 
@@ -222,7 +223,7 @@ export class Polygon implements Coin {
     }
 
     private async getFee(): Promise<number> {
-        const resp = await this.helper.api.get(`https://polygon.blockscout.com/api/v2/stats`);
+        const resp = await this.helper.api.get(`https://eth.blockscout.com/api/v2/stats`);
         return resp.data['gas_prices']['average'];
     }
 
