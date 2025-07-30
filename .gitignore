@@ -144,3 +144,4 @@ sigtx*
 package-lock.json
 acc.db
 public
+.DS_Store
