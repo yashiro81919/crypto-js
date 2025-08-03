@@ -84,11 +84,10 @@ export class Arbitrum implements Blockchain {
         // add input address
         const inputAddr = await input({ message: 'Type input address: ', required: true });
         let inBalance: number;
-        let nonce: number;
         let txUint: number;
         let tokenObj: any = {};
         const addrObj = await this.getAddr(inputAddr);
-        nonce = addrObj.nonce;
+        const nonce = await this.getNonce(inputAddr);
 
         // choose transfer type
         const type = await select({
@@ -201,16 +200,12 @@ export class Arbitrum implements Blockchain {
     }
 
     private async getAddr(address: string): Promise<any> {
-        const resp = await this.helper.api.get(`https://sandbox-api.3xpl.com/arbitrum-one/address/${address}?data=balances,events&from=all&limit=1000&library=currencies`);
+        const resp = await this.helper.api.get(`https://sandbox-api.3xpl.com/arbitrum-one/address/${address}?data=balances&from=all&library=currencies`);
         const balances = resp.data['data']['balances'];
-        const events = resp.data['data']['events']['arbitrum-one-main'];
         const tokenMeta = resp.data['library']['currencies'];
 
         const balance = balances['arbitrum-one-main']['ethereum']['balance'];
         const tokens = [];
-
-        // calculate nonce
-        const nonce = events.filter(t => t['extra'] === null && t['effect'].startsWith('-')).length;
 
         // fetch all ERC-20 tokens
         const erc20Obj = balances['arbitrum-one-erc-20'];
@@ -219,8 +214,16 @@ export class Arbitrum implements Blockchain {
                  value: Number(erc20Obj[token]['balance']), unit: 10 ** Number(tokenMeta[token]['decimals']) });
         }
 
-        return { balance: Number(balance), nonce: nonce, tokens: tokens };
+        return { balance: Number(balance), tokens: tokens };
     }
+
+    private async getNonce(address: string): Promise<number> {
+        const resp = await this.helper.api.get(`https://3xpl.com/arbitrum-one/address/${address}`);
+        const lines = resp.data.split('\n');
+        const index = lines.findIndex(l => l.includes('Nonce:'));
+        const nonce = lines[index + 1].replace(/<[^>]*>/g, '').trim();
+        return Number(nonce);
+    }    
 
     private async getFee(): Promise<number> {
         const resp = await this.helper.api.get(`https://arbitrum.blockscout.com/api/v2/stats`);
