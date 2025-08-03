@@ -14,10 +14,10 @@ export class Arbitrum implements Blockchain {
     coin = '9001';
     account = '0';
     change = '0';
+    color = '32';
     helper: Helper;
 
     private unit = 'gwei/gas';
-    private color = '\x1b[38;5;32m';
     private wei = 10 ** 18;
     private gWei = 10 ** 9;
 

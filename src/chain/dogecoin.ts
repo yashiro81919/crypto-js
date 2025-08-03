@@ -12,10 +12,10 @@ export class Dogecoin implements Blockchain {
     coin = '3';
     account = '0';
     change = '0';
+    color = '186';
     helper: Helper;
 
     private unit = 'koinu/byte';
-    private color = '\x1b[38;5;186m';
     private koinu = 10 ** 8;
 
     constructor(helper: Helper) {

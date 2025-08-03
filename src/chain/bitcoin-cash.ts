@@ -12,10 +12,10 @@ export class BitcoinCash implements Blockchain {
     coin = '145';
     account = '0';
     change = '0';
+    color = '154';
     helper: Helper;
 
     private unit = 'sat/byte';
-    private color = '\x1b[38;5;154m';
     private satoshi = 10 ** 8;
 
     constructor(helper: Helper) {

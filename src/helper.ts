@@ -17,6 +17,7 @@ import { Dogecoin } from './chain/dogecoin';
 import { Polygon } from './chain/polygon';
 import { Optimism } from './chain/optimism';
 import { Arbitrum } from './chain/arbitrum';
+import { Litecoin } from './chain/litecoin';
 
 export class Helper {
 
@@ -32,6 +33,7 @@ export class Helper {
         this.chainRegistry.push(new Ethereum(this));
         this.chainRegistry.push(new Dogecoin(this));
         this.chainRegistry.push(new BitcoinCash(this));
+        this.chainRegistry.push(new Litecoin(this));
         this.chainRegistry.push(new EthereumClassic(this));
         this.chainRegistry.push(new Arbitrum(this));
         this.chainRegistry.push(new Polygon(this));
@@ -200,7 +202,7 @@ export class Helper {
 
     // format output with color
     print(color: string, text: string): void {
-        console.log(color + text + '\x1b[0m');
+        console.log(`\x1b[38;5;${color}m${text}\x1b[0m`);
     }
 
     // decompress a compressed public key

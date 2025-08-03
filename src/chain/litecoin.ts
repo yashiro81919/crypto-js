@@ -6,18 +6,18 @@ import { secp256k1 } from '@noble/curves/secp256k1';
 import { Blockchain } from './blockchain';
 import * as fs from 'fs/promises';
 
-export class Bitcoin implements Blockchain {
-    chain = 'Bitcoin';
-    token = 'BTC';
+export class Litecoin implements Blockchain {
+    chain = 'Litecoin';
+    token = 'LTC';
     purpose = '84';
-    coin = '0';
+    coin = '2';
     account = '0';
     change = '0';
-    color = '214';
+    color = '248';
     helper: Helper;
 
-    private unit = 'sat/vB';
-    private satoshi = 10 ** 8;
+    private unit = 'lit/vB';
+    private litoshi = 10 ** 8;
 
     constructor(helper: Helper) {
         this.helper = helper;
@@ -31,7 +31,7 @@ export class Bitcoin implements Blockchain {
         detail += `Private Key: ${child.privateKey.toString('hex')}\n`;
         detail += `Public Key: ${child.publicKey.toString('hex')}\n`;
         detail += `Segwit Address: ${this.getSigwitAddress(child.identifier)}\n`;
-        detail += `WIF: ${child.toWIF()}\n`;
+        detail += `WIF: ${this.pkToWIF(child.privateKey)}\n`;
         detail += '------------------------------------------------\n';
 
         this.helper.print(this.color, detail);
@@ -42,7 +42,7 @@ export class Bitcoin implements Blockchain {
         const address = this.getSigwitAddress(ck.identifier);
 
         const addr = await this.getAddr(address);
-        this.helper.print(this.color, `|${index}|${address}|${addr.balance / this.satoshi}|${addr.spentFlag}`);
+        this.helper.print(this.color, `|${index}|${address}|${addr.balance / this.litoshi}|${addr.spentFlag}`);
 
         const utxos = await this.getUtxos(address);
         this.helper.print(this.color, '---------------------UTXO---------------------');
@@ -60,13 +60,13 @@ export class Bitcoin implements Blockchain {
             const address = this.getSigwitAddress(ck.identifier);
 
             const addr = await this.getAddr(address);
-            this.helper.print(this.color, `|${a.idx}|${address}|${addr.balance / this.satoshi}|${addr.spentFlag}`);
+            this.helper.print(this.color, `|${a.idx}|${address}|${addr.balance / this.litoshi}|${addr.spentFlag}`);
             total += addr.balance;
 
             this.helper.updateDb(accountName, a.idx, addr.balance + addr.unBalance);
         }
 
-        console.log(`Total Balance: ${total / this.satoshi}`);
+        console.log(`Total Balance: ${total / this.litoshi}`);
     }
 
     async createTx(): Promise<void> {
@@ -102,9 +102,9 @@ export class Bitcoin implements Blockchain {
         while (true) {
             const remainAmt = totalInput - totalOutput;
             const addr = await input({ message: 'Type output address: ', required: true });
-            const balance = await input({ message: 'Type amount: ', required: true, default: (remainAmt / this.satoshi).toString(), validate: (value) => { return this.helper.validateAmount(value, remainAmt); } });
+            const balance = await input({ message: 'Type amount: ', required: true, default: (remainAmt / this.litoshi).toString(), validate: (value) => { return this.helper.validateAmount(value, remainAmt); } });
 
-            const realBal = Math.round(Number(balance) * this.satoshi);
+            const realBal = Math.round(Number(balance) * this.litoshi);
             totalOutput += realBal;
 
             const outputAddr = { address: addr, balance: realBal };
@@ -129,10 +129,10 @@ export class Bitcoin implements Blockchain {
         console.log(`transaction fee: ${feeVb} ${this.unit}`);
         console.log('----------------------------------');
 
-        inputAddrs.forEach(addr => console.log(`input addr: ${addr.address}|${addr.balance / this.satoshi}`));
-        outputAddrs.forEach(addr => console.log(`output addr: ${addr.address}|${addr.balance / this.satoshi}`));
+        inputAddrs.forEach(addr => console.log(`input addr: ${addr.address}|${addr.balance / this.litoshi}`));
+        outputAddrs.forEach(addr => console.log(`output addr: ${addr.address}|${addr.balance / this.litoshi}`));
         if (changeAddr) {
-            console.log(`change addr: ${changeAddr.address}|${changeAddr.balance / this.satoshi}`);
+            console.log(`change addr: ${changeAddr.address}|${changeAddr.balance / this.litoshi}`);
         }
 
         console.log('----------------------------------');
@@ -172,7 +172,7 @@ export class Bitcoin implements Blockchain {
         const fee = Math.ceil(vSize * tx['fee']); // calculated fee
 
         console.log('----------------------------------');
-        console.log(`calculated fee: ${fee / this.satoshi} ${this.token}`);
+        console.log(`calculated fee: ${fee / this.litoshi} ${this.token}`);
         console.log(`vSize: ${vSize} vbytes`);
         console.log('----------------------------------');
 
@@ -251,7 +251,7 @@ export class Bitcoin implements Blockchain {
     }
 
     private async getAddr(address: string): Promise<any> {
-        const resp = await this.helper.api.get(`https://mempool.space/api/address/${address}`);
+        const resp = await this.helper.api.get(`https://litecoinspace.org/api/address/${address}`);
         const balance = resp.data['chain_stats']['funded_txo_sum'] - resp.data['chain_stats']['spent_txo_sum'];
         const unBalance = resp.data['mempool_stats']['funded_txo_sum'] - resp.data['mempool_stats']['spent_txo_sum'];
         const isSpent = resp.data['chain_stats']['spent_txo_count'] > 0;
@@ -261,7 +261,7 @@ export class Bitcoin implements Blockchain {
     }
 
     private async getUtxos(address: string): Promise<any[]> {
-        const resp = await this.helper.api.get(`https://mempool.space/api/address/${address}/utxo`);
+        const resp = await this.helper.api.get(`https://litecoinspace.org/api/address/${address}/utxo`);
         const utxos = [];
         resp.data.forEach(utxo => {
             utxos.push({ txid: utxo['txid'], vout: utxo['vout'], value: utxo['value'] });
@@ -271,25 +271,25 @@ export class Bitcoin implements Blockchain {
     }
 
     private async getFee(): Promise<number> {
-        const resp = await this.helper.api.get(`https://mempool.space/api/v1/fees/recommended`);
+        const resp = await this.helper.api.get(`https://litecoinspace.org/api/v1/fees/recommended`);
         return resp.data['fastestFee'];
     }
 
     private getSigwitAddress(hash160: Buffer): string {
         const witnessVersion = 0;
         const words = [witnessVersion, ...bech32.toWords(hash160)];
-        const hrp = 'bc';
+        const hrp = 'ltc';
         return bech32.encode(hrp, words);
     }
 
-    private getHash160Sigwit(address: `bc1${string}`): string {
+    private getHash160Sigwit(address: `ltc1${string}`): string {
         const decoded = bech32.decode(address);
         const data = bech32.fromWords(decoded.words.slice(1));
         return Buffer.from(data).toString('hex');
     }
 
-    private getHash160Legacy(address: `1${string}`): string {
-        return this.helper.bs58Dec(address);
+    private getHash160Legacy(address: `L${string}`): string {
+        return this.helper.bs58Dec(address).slice(2);
     }
 
     private getPreimage(version: string, inData: string, outData: string,
@@ -333,10 +333,20 @@ export class Bitcoin implements Blockchain {
         return vSize;
     }
 
-    private getOutputScriptPubkey(address: `bc1${string}` | `1${string}`): string {
-        if (address.startsWith('1')) {
-            return `76a914${this.getHash160Legacy(address as `1${string}`)}88ac`; // legacy
+    private pkToWIF(privKey: Buffer): string {
+        if (privKey.length !== 32) {
+            throw new Error('Private key must be 32 bytes (64 hex characters)');
         }
-        return `0014${this.getHash160Sigwit(address as `bc1${string}`)}`; // segwit
+        // 0xB0 = 176 = Litecoin mainnet private key prefix
+        const prefix = 'b0';
+        const privKeyHex = `${privKey.toString('hex')}01`;
+        return this.helper.bs58Enc(prefix + privKeyHex);
+    }       
+
+    private getOutputScriptPubkey(address: `ltc1${string}` | `L${string}`): string {
+        if (address.startsWith('L')) {
+            return `76a914${this.getHash160Legacy(address as `L${string}`)}88ac`; // legacy
+        }
+        return `0014${this.getHash160Sigwit(address as `ltc1${string}`)}`; // segwit
     }
 }

@@ -14,10 +14,10 @@ export class Polygon implements Blockchain {
     coin = '966';
     account = '0';
     change = '0';
+    color = '99';
     helper: Helper;
 
     private unit = 'gwei/gas';
-    private color = '\x1b[38;5;99m';
     private wei = 10 ** 18;
     private gWei = 10 ** 9;
 

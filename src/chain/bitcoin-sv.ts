@@ -12,10 +12,10 @@ export class BitcoinSV implements Blockchain {
     coin = '236';
     account = '0';
     change = '0';
+    color = '220';
     helper: Helper;
 
     private unit = 'sat/byte';
-    private color = '\x1b[38;5;220m';
     private satoshi = 10 ** 8;
 
     constructor(helper: Helper) {
