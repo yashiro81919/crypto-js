@@ -200,9 +200,10 @@ export class Ethereum implements Blockchain {
     }
 
     private async getAddr(address: string): Promise<any> {
-        const resp = await this.helper.api.get(`https://sandbox-api.3xpl.com/ethereum/address/${address}?data=balances&from=all&library=currencies`);
+        const resp = await this.helper.api.get(`https://sandbox-api.3xpl.com/ethereum/address/${address}?data=balances&from=all&library=currencies,rates(usd)`);
         const balances = resp.data['data']['balances'];
         const tokenMeta = resp.data['library']['currencies'];
+        const rates = resp.data['library']['rates']['now'];
 
         const balance = balances['ethereum-main']['ethereum']['balance'];
         const tokens = [];
@@ -210,8 +211,11 @@ export class Ethereum implements Blockchain {
         // fetch all ERC-20 tokens
         const erc20Obj = balances['ethereum-erc-20'];
         for (const token in erc20Obj) {
-            tokens.push({ name: tokenMeta[token]['symbol'], address: token.replace('ethereum-erc-20/', '').toLowerCase(),
-                 value: Number(erc20Obj[token]['balance']), unit: 10 ** Number(tokenMeta[token]['decimals']) });
+            // exclude garbage tokens according to the value from rates
+            if (rates[token]['usd']) {
+                tokens.push({ name: tokenMeta[token]['symbol'], address: token.replace('ethereum-erc-20/', '').toLowerCase(),
+                    value: Number(erc20Obj[token]['balance']), unit: 10 ** Number(tokenMeta[token]['decimals']) });
+            }            
         }
 
         return { balance: Number(balance), tokens: tokens };
