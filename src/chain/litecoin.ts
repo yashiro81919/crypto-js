@@ -13,7 +13,7 @@ export class Litecoin implements Blockchain {
     coin = '2';
     account = '0';
     change = '0';
-    color = '248';
+    color = '231';
     helper: Helper;
 
     private unit = 'lit/vB';

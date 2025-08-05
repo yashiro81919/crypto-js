@@ -6,7 +6,7 @@ import { secp256k1 } from '@noble/curves/secp256k1';
 import { Database } from 'better-sqlite3';
 import DatabaseInstance = require('better-sqlite3');
 import { SocksProxyAgent } from 'socks-proxy-agent';
-import { aes256gcmDecode } from './aes';
+import { aes256gcmDecode, aes256gcmEncode } from './aes';
 import { Blockchain } from './chain/blockchain';
 import { Bitcoin } from './chain/bitcoin';
 import { BitcoinSV } from './chain/bitcoin-sv';
@@ -26,6 +26,7 @@ export class Helper {
     DB_FILE = 'acc.db';
     TX_FILE = 'tx';
     SIG_TX_FILE = 'sigtx';
+    COST_NAME = 'cost';
     db: Database;
 
     constructor() {
@@ -52,22 +53,14 @@ export class Helper {
         const config: AxiosRequestConfig = {};
         config.headers = { 'Content-Type': 'application/json' };
         config.validateStatus = () => true;
-        try {
-            const url = 'https://www.google.com';
-            await fetch(url, { method: 'HEAD', mode: 'no-cors' });
-            // For 'no-cors' mode, we can't inspect the response status directly,
-            // but a successful fetch indicates a connection.
-            // If you can use 'cors' mode, you can check response.ok or response.status.
-            this.api = axios.create(config);
-        } catch (error) {
-            // this is used when testing with GFW. a lot of websites are blocked.
-            // need a socks5 proxy server to bypass the GFW.
-            const proxy = 'socks5h://127.0.0.1:1080';
-            const agent = new SocksProxyAgent(proxy);
+
+        if (process.env.APP_STAGE !== 'prd') {
+            const agent = new SocksProxyAgent('socks5h://127.0.0.1:1080');
             config.httpAgent = agent;
             config.httpsAgent = agent;
-            this.api = axios.create(config);
         }
+
+        this.api = axios.create(config);
     }
 
     isFloat(value: string): boolean {
@@ -115,9 +108,45 @@ export class Helper {
         return accounts;
     }
 
+    aggAllAccounts(): any {
+        const stmt = this.db.prepare('select sum(a.balance) balance, a.name, b.coin_type from t_address a inner join t_account b on a.name = b.name group by a.name');
+        return stmt.all();
+    }
+
+    addAccount(name: string, pubKey: string, coinType: string): void {
+        const stmt = this.db.prepare('insert into t_account (name, pub_key, coin_type) values (?, ?, ?)');
+        pubKey = aes256gcmEncode(Buffer.from(pubKey, 'utf8'), name).toString('hex');
+        stmt.run(name, pubKey, coinType);
+    }
+
+    deleteAccount(name: string): void {
+        const stmt = this.db.prepare('delete from t_account where name = ?');
+        stmt.run(name);
+    }
+
+    getCost(): number {
+        const stmt = this.db.prepare('select balance from t_address where name = ?');
+        const obj = stmt.get(this.COST_NAME);
+        let cost: number;
+        if (!obj) {
+            const stmtInsert = this.db.prepare('insert into t_address (name, idx, balance) values (?, ?, ?)');
+            stmtInsert.run(this.COST_NAME, 0, 0);
+            cost = 0;
+        } else {
+            cost = obj['balance'];
+        }
+        return Number(cost);
+    }
+
+    updateCost(value: number, append: boolean): void {
+        const sql = append ? 'update t_address set balance = balance + ? where name = ?' : 'update t_address set balance = ? where name = ?';
+        const stmt = this.db.prepare(sql);
+        stmt.run(value, this.COST_NAME);
+    }
+
     getUsingAddresses(accountName: string): any {
-        const stmt = this.db.prepare('select * from t_address where name = ? and "using" = ?');
-        return stmt.all(accountName, 1);
+        const stmt = this.db.prepare('select * from t_address where name = ? and balance > ?');
+        return stmt.all(accountName, 0);
     }
 
     updateDb(accountName: string, i: string, value: number): void {
@@ -125,14 +154,11 @@ export class Helper {
         const addr_row: any = stmt.get(accountName, Number(i));
 
         if (!addr_row && value > 0) {
-            const stmt = this.db.prepare('insert into t_address (name, idx, "using") values (?, ?, ?)');
-            stmt.run(accountName, Number(i), 1);
-        } else if (addr_row && addr_row.using === 0 && value > 0) {
-            const stmt = this.db.prepare('update t_address set "using" = ? where name = ? and idx = ?');
-            stmt.run(1, accountName, Number(i));
-        } else if (addr_row && addr_row.using === 1 && value === 0) {
-            const stmt = this.db.prepare('update t_address set "using" = ? where name = ? and idx = ?');
-            stmt.run(0, accountName, Number(i));
+            const stmt = this.db.prepare('insert into t_address (name, idx, balance) values (?, ?, ?)');
+            stmt.run(accountName, Number(i), value);
+        } else if (addr_row) {
+            const stmt = this.db.prepare('update t_address set balance = ? where name = ? and idx = ?');
+            stmt.run(value, accountName, Number(i));
         }
     }
 

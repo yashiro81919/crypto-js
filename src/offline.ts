@@ -20,7 +20,7 @@ async function getKey(): Promise<BIP32Interface> {
     const seed = bip39.mnemonicToSeedSync(mnemonic, pass);
     const root = bip32.fromSeed(seed);
 
-    const pub = root.derivePath('m/' + blockchain.purpose + '\'/' + blockchain.coin + '\'/' + blockchain.account + '\'');
+    const pub = root.derivePath(`m/${blockchain.purpose}'/${blockchain.coin}'/${blockchain.account}'`);
     fs.writeFile(masterPublicFilePath, pub.neutered().toBase58(), 'utf8');
     return root;
 }
@@ -91,7 +91,7 @@ async function sign(): Promise<void> {
 
 async function main(): Promise<void> {
     helper = new Helper();
-    
+
     const step = await select({
         message: 'Choose your action: ', choices: [
             { value: 0, name: 'check account private key' },
@@ -104,12 +104,12 @@ async function main(): Promise<void> {
     if (step === 0) {
         await account();
     } else if (step === 1) {
-       await sign();
+        await sign();
     } else if (step === 2) {
-       await generateSeed();
+        await generateSeed();
     } else if (step === 3) {
         return;
-    }    
+    }
 }
 
 if (require.main === module) {
