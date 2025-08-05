@@ -50,7 +50,7 @@ export class Polygon implements Blockchain {
         this.helper.print(this.color, '---------------------Polygon ERC20---------------------');
         addr.tokens.forEach(token => this.helper.print(this.color, `|${token.name}|${token.address}|${token.value / token.unit}`));
 
-        this.helper.updateDb(accountName, index, addr.balance);
+        this.helper.updateDb(accountName, index, addr.balance / this.wei);
     }
 
     async showUsingAddresses(xpub: BIP32Interface, accountName: string): Promise<void> {
@@ -66,7 +66,7 @@ export class Polygon implements Blockchain {
             this.helper.print(this.color, `|${a.idx}|${address}|${addr.balance / this.wei}|${addr.tokens.map(t => t.name).join(',')}`);
             total += addr.balance;
 
-            this.helper.updateDb(accountName, a.idx, addr.balance);
+            this.helper.updateDb(accountName, a.idx, addr.balance / this.wei);
         }
 
         console.log(`Total Balance: ${total / this.wei}`);

@@ -48,7 +48,7 @@ export class Bitcoin implements Blockchain {
         this.helper.print(this.color, '---------------------UTXO---------------------');
         utxos.forEach(utxo => this.helper.print(this.color, `|${utxo.vout}|${utxo.txid}|${utxo.value}`));
 
-        this.helper.updateDb(accountName, index, addr.balance + addr.unBalance);
+        this.helper.updateDb(accountName, index, (addr.balance + addr.unBalance) / this.satoshi);
     }
 
     async showUsingAddresses(xpub: BIP32Interface, accountName: string): Promise<void> {
@@ -63,7 +63,7 @@ export class Bitcoin implements Blockchain {
             this.helper.print(this.color, `|${a.idx}|${address}|${addr.balance / this.satoshi}|${addr.spentFlag}`);
             total += addr.balance;
 
-            this.helper.updateDb(accountName, a.idx, addr.balance + addr.unBalance);
+            this.helper.updateDb(accountName, a.idx, (addr.balance + addr.unBalance) / this.satoshi);
         }
 
         console.log(`Total Balance: ${total / this.satoshi}`);

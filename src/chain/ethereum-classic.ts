@@ -47,7 +47,7 @@ export class EthereumClassic implements Blockchain {
         const addr = await this.getAddr(address);
         this.helper.print(this.color, `|${index}|${address}|${addr.balance / this.wei}`);
 
-        this.helper.updateDb(accountName, index, addr.balance);
+        this.helper.updateDb(accountName, index, addr.balance / this.wei);
     }
 
     async showUsingAddresses(xpub: BIP32Interface, accountName: string): Promise<void> {
@@ -63,7 +63,7 @@ export class EthereumClassic implements Blockchain {
             this.helper.print(this.color, `|${a.idx}|${address}|${addr.balance / this.wei}`);
             total += addr.balance;
 
-            this.helper.updateDb(accountName, a.idx, addr.balance);
+            this.helper.updateDb(accountName, a.idx, addr.balance / this.wei);
         }
 
         console.log(`Total Balance: ${total / this.wei}`);

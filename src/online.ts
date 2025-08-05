@@ -75,15 +75,15 @@ async function managePortfolio(): Promise<void> {
 
     if (step === 0) {
         const coinMap = new Map<string, string>();
-        coinMap.set('0', 'bitcoin');
-        coinMap.set('145', 'bitcoin-cash');
-        coinMap.set('2', 'litecoin');
-        coinMap.set('3', 'dogecoin');
-        coinMap.set('60', 'ethereum');
-        coinMap.set('61', 'ethereum-classic');
-        coinMap.set('966', 'matic');
-        coinMap.set('614', 'optimism-erc-20/0x4200000000000000000000000000000000000042');
-        coinMap.set('9001', 'arbitrum-one-erc-20/0x912ce59144191c1204e64559fe8253a0e49e6548');
+        coinMap.set('BTC', 'bitcoin');
+        coinMap.set('BCH', 'bitcoin-cash');
+        coinMap.set('LTC', 'litecoin');
+        coinMap.set('DOGE', 'dogecoin');
+        coinMap.set('ETH', 'ethereum');
+        coinMap.set('ETC', 'ethereum-classic');
+        coinMap.set('POL', 'matic');
+        coinMap.set('OP', 'optimism-erc-20/0x4200000000000000000000000000000000000042');
+        coinMap.set('ARB', 'arbitrum-one-erc-20/0x912ce59144191c1204e64559fe8253a0e49e6548');
 
         const resp = await helper.api.get(`https://sandbox-api.3xpl.com/?library=blockchains,rates(usd)`);
         const rates = resp.data['library']['rates']['now'];
@@ -95,16 +95,17 @@ async function managePortfolio(): Promise<void> {
         rows.forEach(row => {
             const blockchain = helper.getBlockchain(row['coin_type']);
             const balance = row['balance'];
-            const price = rates[coinMap.get(row['coin_type'])]['usd'];
+            const accName = row['name'];
+            const price = rates[coinMap.get(blockchain.token)]['usd'];
             const amount = (balance * price).toFixed(2);
             total += Number(amount);
-            helper.print(blockchain.color, `|${blockchain.chain}|${balance}|${price}|${amount}`);
+            helper.print(blockchain.color, `|${blockchain.chain}|${accName}|${balance}|${price}|${amount}`);
         });
         console.log(`------------------------------------------`);
-        helper.print('255', `Total Balance: ${total}`);
+        helper.print('255', `Total Balance: ${total.toFixed(2)}`);
         const cost = helper.getCost();
         helper.print('255', `Total Cost: ${cost}`);
-        helper.print('255', `Total Profit: ${total - cost}`);
+        helper.print('255', `Total Profit: ${(total - cost).toFixed(2)}`);
     } else if (step === 1) {
         const cost = helper.getCost();
 
