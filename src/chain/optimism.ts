@@ -200,10 +200,9 @@ export class Optimism implements Blockchain {
     }
 
     private async getAddr(address: string): Promise<any> {
-        const resp = await this.helper.api.get(`https://sandbox-api.3xpl.com/optimism/address/${address}?data=balances&from=all&library=currencies,rates(usd)`);
+        const resp = await this.helper.api.get(`https://sandbox-api.3xpl.com/optimism/address/${address}?data=balances&from=all&library=currencies`);
         const balances = resp.data['data']['balances'];
         const tokenMeta = resp.data['library']['currencies'];
-        const rates = resp.data['library']['rates']['now'];
 
         const balance = balances['optimism-main']['ethereum']['balance'];
         const tokens = [];
@@ -211,11 +210,8 @@ export class Optimism implements Blockchain {
         // fetch all ERC-20 tokens
         const erc20Obj = balances['optimism-erc-20'];
         for (const token in erc20Obj) {
-            // exclude garbage tokens according to the value from rates
-            if (rates[token]['usd']) {
-                tokens.push({ name: tokenMeta[token]['symbol'], address: token.replace('optimism-erc-20/', '').toLowerCase(),
-                    value: Number(erc20Obj[token]['balance']), unit: 10 ** Number(tokenMeta[token]['decimals']) });
-            }
+            tokens.push({ name: tokenMeta[token]['symbol'], address: token.replace('optimism-erc-20/', '').toLowerCase(),
+                 value: Number(erc20Obj[token]['balance']), unit: 10 ** Number(tokenMeta[token]['decimals']) });
         }
 
         return { balance: Number(balance), tokens: tokens };
