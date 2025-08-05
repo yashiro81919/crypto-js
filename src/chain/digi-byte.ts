@@ -5,22 +5,22 @@ import { secp256k1 } from '@noble/curves/secp256k1';
 import { Blockchain } from './blockchain';
 import * as fs from 'fs/promises';
 
-export class BitcoinSV implements Blockchain {
-    chain = 'Bitcoin SV';
-    token = 'BSV';    
+export class DigiByte implements Blockchain {
+    chain = 'DigiByte';
+    token = 'DGB';
     purpose = '44';
-    coin = '236';
+    coin = '20';
     account = '0';
     change = '0';
-    color = '220';
+    color = '21';
     helper: Helper;
 
-    private unit = 'sat/byte';
-    private satoshi = 10 ** 8;
+    private unit = 'digibit/byte';
+    private digibit = 10 ** 8;
 
     constructor(helper: Helper) {
         this.helper = helper;
-    } 
+    }
 
     showKeyInfo(root: BIP32Interface, index: string): void {
         const child = root.derivePath(`m/${this.purpose}'/${this.coin}'/${this.account}'/${this.change}/${index}`);
@@ -29,7 +29,7 @@ export class BitcoinSV implements Blockchain {
 
         detail += `Private Key: ${child.privateKey.toString('hex')}\n`;
         detail += `Public Key: ${child.publicKey.toString('hex')}\n`;
-        detail += `Legacy Address: ${this.getLegacyAddress(child.identifier)}\n`;
+        detail += `Address: ${this.getAddress(child.identifier)}\n`;
         detail += `WIF: ${child.toWIF()}\n`;
         detail += '------------------------------------------------\n';
 
@@ -38,16 +38,16 @@ export class BitcoinSV implements Blockchain {
 
     async showAddressDetail(xpub: BIP32Interface, accountName: string, index: string): Promise<void> {
         const ck = xpub.derivePath(`${String(this.account)}/${index}`);
-        const address = this.getLegacyAddress(ck.identifier);
+        const address = this.getAddress(ck.identifier);
 
         const addr = await this.getAddr(address);
-        this.helper.print(this.color, `|${index}|${address}|${addr.balance / this.satoshi}`);
+        this.helper.print(this.color, `|${index}|${address}|${addr.balance / this.digibit}|${addr.spentFlag}`);
 
         const utxos = await this.getUtxos(address);
         this.helper.print(this.color, '---------------------UTXO---------------------');
         utxos.forEach(utxo => this.helper.print(this.color, `|${utxo.vout}|${utxo.txid}|${utxo.value}`));
 
-        this.helper.updateDb(accountName, index, (addr.balance + addr.unBalance) / this.satoshi);
+        this.helper.updateDb(accountName, index, (addr.balance + addr.unBalance) / this.digibit);
     }
 
     async showUsingAddresses(xpub: BIP32Interface, accountName: string): Promise<void> {
@@ -56,16 +56,16 @@ export class BitcoinSV implements Blockchain {
 
         for (const a of using_addrs) {
             const ck = xpub.derivePath(`${String(this.account)}/${a.idx}`);
-            const address = this.getLegacyAddress(ck.identifier);
+            const address = this.getAddress(ck.identifier);
 
             const addr = await this.getAddr(address);
-            this.helper.print(this.color, `|${a.idx}|${address}|${addr.balance / this.satoshi}`);
+            this.helper.print(this.color, `|${a.idx}|${address}|${addr.balance / this.digibit}|${addr.spentFlag}`);
             total += addr.balance;
 
-            this.helper.updateDb(accountName, a.idx, (addr.balance + addr.unBalance) / this.satoshi);
+            this.helper.updateDb(accountName, a.idx, (addr.balance + addr.unBalance) / this.digibit);
         }
 
-        console.log(`Total Balance: ${total / this.satoshi}`);
+        console.log(`Total Balance: ${total / this.digibit}`);
     }
 
     async createTx(): Promise<void> {
@@ -101,9 +101,9 @@ export class BitcoinSV implements Blockchain {
         while (true) {
             const remainAmt = totalInput - totalOutput;
             const addr = await input({ message: 'Type output address: ', required: true });
-            const balance = await input({ message: 'Type amount: ', required: true, default: (remainAmt / this.satoshi).toString(), validate: (value) => { return this.helper.validateAmount(value, remainAmt); } });
+            const balance = await input({ message: 'Type amount: ', required: true, default: (remainAmt / this.digibit).toString(), validate: (value) => { return this.helper.validateAmount(value, remainAmt); } });
 
-            const realBal = Math.round(Number(balance) * this.satoshi);
+            const realBal = Math.round(Number(balance) * this.digibit);
             totalOutput += realBal;
 
             const outputAddr = { address: addr, balance: realBal };
@@ -128,10 +128,10 @@ export class BitcoinSV implements Blockchain {
         console.log(`transaction fee: ${feeVb} ${this.unit}`);
         console.log('----------------------------------');
 
-        inputAddrs.forEach(addr => console.log(`input addr: ${addr.address}|${addr.balance / this.satoshi}`));
-        outputAddrs.forEach(addr => console.log(`output addr: ${addr.address}|${addr.balance / this.satoshi}`));
+        inputAddrs.forEach(addr => console.log(`input addr: ${addr.address}|${addr.balance / this.digibit}`));
+        outputAddrs.forEach(addr => console.log(`output addr: ${addr.address}|${addr.balance / this.digibit}`));
         if (changeAddr) {
-            console.log(`change addr: ${changeAddr.address}|${changeAddr.balance / this.satoshi}`);
+            console.log(`change addr: ${changeAddr.address}|${changeAddr.balance / this.digibit}`);
         }
 
         console.log('----------------------------------');
@@ -171,7 +171,7 @@ export class BitcoinSV implements Blockchain {
         const fee = Math.ceil(size * tx['fee']); // calculated fee
 
         console.log('----------------------------------');
-        console.log(`calculated fee: ${fee / this.satoshi} ${this.token}`);
+        console.log(`calculated fee: ${fee / this.digibit} ${this.token}`);
         console.log(`size: ${size} bytes`);
         console.log('----------------------------------');
 
@@ -191,14 +191,12 @@ export class BitcoinSV implements Blockchain {
 
         let raw = '';
 
-        const version = '02000000';
+        const version = '01000000';
         const locktime = '00000000';
 
         raw += version; // version
 
         raw += this.helper.getCompactSize(tx['inputs'].length); // inputcount
-        let inData = '';
-        let seqs = '';        
         const sequence = 'fdffffff'; // sequence, enable RBF
         for (const input of tx['inputs']) {
             const txId = this.helper.hexToLE(input['txid']); // txid, must be Reverse Byte Order
@@ -206,33 +204,28 @@ export class BitcoinSV implements Blockchain {
 
             raw += txId + vout;
             raw += `{${input['txid']}}`; // scriptsig size and scriptsig, set placeholder here
-            raw += sequence;
-
-            inData += txId + vout;
-            seqs += sequence;
-            input['txid-vout'] = txId + vout; // add a new property txid + vout            
+            raw += sequence;         
         }
 
         raw += this.helper.getCompactSize(tx['outputs'].length); // outputcount
-        let outData = '';
         for (const output of tx['outputs']) {
             const scriptPubkey = `76a914${this.getHash160Legacy(output['address'])}88ac`;; // scriptpubkey
             const keySize = this.helper.getCompactSize(scriptPubkey.length / 2); // scriptpubkeysize
             const finalAmt = output['change'] ? output['amount'] - fee : output['amount']; // output with change flag will deduct network fee
             let amount = this.helper.hexToLE(finalAmt.toString(16).padStart(16, '0')); // amount
 
-            outData += amount + keySize + scriptPubkey;
             raw += amount + keySize + scriptPubkey;
         }
 
         raw += locktime; // locktime
 
         // calculate and update signature part of tx
+        const preimage = raw; // clone the current raw string
         for (const input of tx['inputs']) {
             const privateKey = keyMap.get(input['address']);
 
-            const rawSignature = secp256k1.sign(this.getPreimage(version, inData, outData, seqs, sequence, locktime, input), privateKey, { lowS: true });
-            const signature = `${rawSignature.toDERHex()}41`; // DER Sign + SIGHASH_FORKID (0x41)
+            const rawSignature = secp256k1.sign(this.getPreimageLagacy(preimage, input), privateKey, { lowS: true });
+            const signature = `${rawSignature.toDERHex()}01`; // DER Sign + SIGHASH_ALL (0x01)
             const sigSize = this.helper.getCompactSize(signature.length / 2); // signature size
 
             const publicKey = Buffer.from(secp256k1.getPublicKey(privateKey)).toString('hex');
@@ -249,78 +242,62 @@ export class BitcoinSV implements Blockchain {
     }
 
     private async getAddr(address: string): Promise<any> {
-        let resp = await this.helper.api.get(`https://api.whatsonchain.com/v1/bsv/main/address/${address}/confirmed/balance`);
-        const balance = resp.data['confirmed'];
-        resp = await this.helper.api.get(`https://api.whatsonchain.com/v1/bsv/main/address/${address}/unconfirmed/balance`);
-        const unBalance = resp.data['unconfirmed'];
+        const resp = await this.helper.api.get(`https://digiexplorer.info/api/address/${address}`);
+        const balance = resp.data['chain_stats']['funded_txo_sum'] - resp.data['chain_stats']['spent_txo_sum'];
+        const unBalance = resp.data['mempool_stats']['funded_txo_sum'] - resp.data['mempool_stats']['spent_txo_sum'];
+        const isSpent = resp.data['chain_stats']['spent_txo_count'] > 0;
+        const spentFlag = isSpent ? "✘" : "✔";
 
-        return { balance: balance, unBalance: unBalance };
+        return { balance: balance, unBalance: unBalance, spentFlag: spentFlag };
     }
-    
+
     private async getUtxos(address: string): Promise<any[]> {
-        const resp = await this.helper.api.get(`https://api.whatsonchain.com/v1/bsv/main/address/${address}/confirmed/unspent`);
+        const resp = await this.helper.api.get(`https://digiexplorer.info/api/address/${address}/utxo`);
         const utxos = [];
-        if (resp.data === 'Not Found') {
-            return utxos;
-        }
-        resp.data['result'].forEach(utxo => {
-            utxos.push({ txid: utxo['tx_hash'], vout: utxo['tx_pos'], value: utxo['value'] });
+        resp.data.forEach(utxo => {
+            utxos.push({ txid: utxo['txid'], vout: utxo['vout'], value: utxo['value'] });
         });
 
         return utxos;
     }
-    
+
     private async getFee(): Promise<number> {
-        return 1;
+        return 100;
     }
 
-    private getLegacyAddress(hash160: Buffer): string {
-        const prefix = '00';
+    private getAddress(hash160: Buffer): string {
+        const prefix = '1e';
         const hash160Hex = hash160.toString('hex');
-        return '1' + this.helper.bs58Enc(prefix + hash160Hex);
+        return this.helper.bs58Enc(prefix + hash160Hex);
     }
 
-    private getHash160Legacy(address: `1${string}`): string {
-        return this.helper.bs58Dec(address);
+    private getHash160Legacy(address: `D${string}`): string {
+        return this.helper.bs58Dec(address).slice(2);
     }
-    
-    private getPreimage(version: string, inData: string, outData: string,
-         seqs: string, sequence: string, locktime: string, input: any[]): Buffer<ArrayBuffer> {
-        let preimage = '';
-        // Grab the version field
-        preimage += version;
-        // Serialize and hash the TXIDs and VOUTs for the inputs
-        preimage += this.helper.hash256(inData);
-        // Serialize and hash the sequences for the inputs
-        preimage += this.helper.hash256(seqs);
-        // Serialize the TXID and VOUT for the input we're signing
-        preimage += input['txid-vout'];
-        // Create a scriptcode for the input we're signing
-        const scriptPubkey = this.getHash160Legacy(input['address']);
-        preimage += `1976a914${scriptPubkey}88ac`;
-        // Find the input amount
-        preimage += this.helper.hexToLE(input['value'].toString(16).padStart(16, '0'));
-        // Grab the sequence for the input we're signing
-        preimage += sequence;
-        // Serialize and hash all the outputs
-        preimage += this.helper.hash256(outData);
-        // Grab the locktime
-        preimage += locktime;
+
+    private getPreimageLagacy(preimage: string, input: any[]): Buffer<ArrayBuffer> {
+        const scriptSig = `76a914${this.getHash160Legacy(input['address'])}88ac`;
+        const scriptSigSize = this.helper.getCompactSize(scriptSig.length / 2);
+
+        // put the ScriptPubKey from the output we want to spend into the ScriptSig of our input
+        preimage = preimage.replace(`{${input['txid']}}`, scriptSigSize + scriptSig);
+        // Remove existing ScriptSigs for other inputs
+        preimage = preimage.replace(/\{[^}]*\}/g, '00');
         // Add signature hash type to the end of the hash preimage
-        preimage += '41000000'; // SIGHASH_FORKID
+        preimage += '01000000'; // SIGHASH_ALL
         // Hash the preimage
         preimage = this.helper.hash256(preimage);
 
         return Buffer.from(preimage, 'hex');
-    }    
-    
-    private calcSize(tx : any): number {
+    } 
+
+    private calcSize(tx: any): number {
         let size = 4; // Version
-        const inputTotal = this.helper.getCompactSize(tx['inputs'].length); 
+        const inputTotal = this.helper.getCompactSize(tx['inputs'].length);
         size += tx['inputs'].length * ((inputTotal.length / 2) + 32 + 4 + 1 + (1 + 72 + 1 + 33) + 4);
-        const outputTotal = this.helper.getCompactSize(tx['outputs'].length); 
+        const outputTotal = this.helper.getCompactSize(tx['outputs'].length);
         size += tx['outputs'].length * ((outputTotal.length / 2) + 8 + 1 + 25);
         size += 4; // locktime
         return size;
-    }    
+    }      
 }

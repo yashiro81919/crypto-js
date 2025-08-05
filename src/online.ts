@@ -116,7 +116,7 @@ async function managePortfolio(): Promise<void> {
             ]
         });
 
-        const newCost = await input({ message: `Type new cost: `, default: cost.toString(), validate: helper.isInteger });
+        const newCost = await input({ message: `Type new cost: `, default: cost.toString(), validate: helper.isFloat });
         helper.updateCost(Number(newCost), mode === 0);
 
         const currCost = helper.getCost();

@@ -9,7 +9,7 @@ import { SocksProxyAgent } from 'socks-proxy-agent';
 import { aes256gcmDecode, aes256gcmEncode } from './aes';
 import { Blockchain } from './chain/blockchain';
 import { Bitcoin } from './chain/bitcoin';
-import { BitcoinSV } from './chain/bitcoin-sv';
+import { DigiByte } from './chain/digi-byte';
 import { BitcoinCash } from './chain/bitcoin-cash';
 import { Ethereum } from './chain/ethereum';
 import { EthereumClassic } from './chain/ethereum-classic';
@@ -31,15 +31,15 @@ export class Helper {
 
     constructor() {
         this.chainRegistry.push(new Bitcoin(this));
-        this.chainRegistry.push(new Ethereum(this));
-        this.chainRegistry.push(new Dogecoin(this));
-        this.chainRegistry.push(new BitcoinCash(this));
         this.chainRegistry.push(new Litecoin(this));
+        this.chainRegistry.push(new Dogecoin(this));
+        this.chainRegistry.push(new DigiByte(this));
+        this.chainRegistry.push(new BitcoinCash(this));
+        this.chainRegistry.push(new Ethereum(this));
         this.chainRegistry.push(new EthereumClassic(this));
-        this.chainRegistry.push(new Arbitrum(this));
         this.chainRegistry.push(new Polygon(this));
         this.chainRegistry.push(new Optimism(this));
-        this.chainRegistry.push(new BitcoinSV(this));
+        this.chainRegistry.push(new Arbitrum(this));    
     }
 
     async initResource(): Promise<void> {
