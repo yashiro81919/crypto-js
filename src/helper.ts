@@ -18,6 +18,7 @@ import { Polygon } from './chain/polygon';
 import { Optimism } from './chain/optimism';
 import { Arbitrum } from './chain/arbitrum';
 import { Litecoin } from './chain/litecoin';
+import { Monero } from './chain/monero';
 
 export class Helper {
 
@@ -35,11 +36,12 @@ export class Helper {
         this.chainRegistry.push(new Dogecoin(this));
         this.chainRegistry.push(new DigiByte(this));
         this.chainRegistry.push(new BitcoinCash(this));
+        this.chainRegistry.push(new Monero(this));
         this.chainRegistry.push(new Ethereum(this));
         this.chainRegistry.push(new EthereumClassic(this));
         this.chainRegistry.push(new Polygon(this));
         this.chainRegistry.push(new Optimism(this));
-        this.chainRegistry.push(new Arbitrum(this));    
+        this.chainRegistry.push(new Arbitrum(this));
     }
 
     async initResource(): Promise<void> {
