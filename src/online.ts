@@ -105,6 +105,7 @@ async function managePortfolio(): Promise<void> {
             tokens.filter(t => t['name'] === accName).forEach(t => {
                 const erc20Tokens = blockchain['erc20Tokens'];
                 const token = erc20Tokens.find(e => e.contract === t['contract']);
+                total += Number(t['balance']);
                 helper.print(blockchain.color, `|${blockchain.chain}|${accName}|${token.name}|${t['balance']}|1|${t['balance']}`);
             });
         });
