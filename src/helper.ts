@@ -104,14 +104,19 @@ export class Helper {
         return accounts;
     }
 
-    aggAllAccounts(): any {
+    aggAllAccounts(): any[] {
         const stmt = this.db.prepare('select sum(a.balance) balance, a.name, b.coin_type from t_address a inner join t_account b on a.name = b.name group by a.name');
         return stmt.all();
     }
 
-    aggAllTokens(): any {
+    aggAllTokens(): any[] {
         const stmt = this.db.prepare('select sum(balance) balance, name, contract from t_token group by name, contract');
         return stmt.all();
+    }
+
+    getValidTokens(coinType: string): any[] {
+        const stmt = this.db.prepare('select * from t_valid_token where coin_type = ?');
+        return stmt.all(coinType);        
     }
 
     addAccount(name: string, pubKey: string, coinType: string): void {

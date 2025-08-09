@@ -15,13 +15,7 @@ export class Polygon implements Blockchain {
     account = '0';
     change = '0';
     color = '99';
-    helper: Helper;
-
-    erc20Tokens = [
-        { name: 'USDC', contract: '0x3c499c542cef5e3811e1192ce70d8cc03d5c3359'},
-        { name: 'USDT', contract: '0xc2132d05d31c914a87c6611c10748aeb04b58e8f'},
-        { name: 'DAI', contract: '0x8f3cf7ad23cd3cadbd9735aff958023239c6a063'}
-    ];     
+    helper: Helper; 
 
     private unit = 'gwei/gas';
     private wei = 10 ** 18;
@@ -218,9 +212,10 @@ export class Polygon implements Blockchain {
 
         // fetch all ERC-20 tokens
         const erc20Obj = balances['polygon-erc-20'];
+        const validTokens = this.helper.getValidTokens(this.coin);
         for (const token in erc20Obj) {
             const contract = token.replace('polygon-erc-20/', '').toLowerCase();    
-            const erc20 = this.erc20Tokens.find(e => e.contract === contract);
+            const erc20 = validTokens.find(e => e.contract === contract);
             if (erc20) {
                 tokens.push({
                     name: erc20.name, address: contract, value: Number(erc20Obj[token]['balance']), unit: 10 ** Number(tokenMeta[token]['decimals'])

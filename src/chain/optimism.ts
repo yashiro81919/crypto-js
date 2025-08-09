@@ -15,13 +15,7 @@ export class Optimism implements Blockchain {
     account = '0';
     change = '0';
     color = '196';
-    helper: Helper;
-
-    erc20Tokens = [
-        { name: 'USDC', contract: '0x0b2c639c533813f4aa9d7837caf62653d097ff85'},
-        { name: 'USDT', contract: '0x94b008aa00579c1307b0ef2c499ad98a8ce58e58'},
-        { name: 'DAI', contract: '0xda10009cbd5d07dd0cecc66161fc93d7c9000da1'}
-    ];    
+    helper: Helper;   
 
     private unit = 'gwei/gas';
     private wei = 10 ** 18;
@@ -218,9 +212,10 @@ export class Optimism implements Blockchain {
 
         // fetch all ERC-20 tokens
         const erc20Obj = balances['optimism-erc-20'];
+        const validTokens = this.helper.getValidTokens(this.coin);
         for (const token in erc20Obj) {
             const contract = token.replace('optimism-erc-20/', '').toLowerCase();
-            const erc20 = this.erc20Tokens.find(e => e.contract === contract);
+            const erc20 = validTokens.find(e => e.contract === contract);
             if (erc20) {
                 tokens.push({
                     name: erc20.name, address: contract, value: Number(erc20Obj[token]['balance']), unit: 10 ** Number(tokenMeta[token]['decimals'])

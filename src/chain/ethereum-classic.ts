@@ -196,11 +196,15 @@ export class EthereumClassic implements Blockchain {
 
         // fetch all ERC-20 tokens
         const erc20Obj = balances['ethereum-classic-erc-20'];
+        const validTokens = this.helper.getValidTokens(this.coin);
         for (const token in erc20Obj) {
-            tokens.push({
-                name: tokenMeta[token]['symbol'], address: token.replace('ethereum-classic-erc-20/', '').toLowerCase(),
-                value: Number(erc20Obj[token]['balance']), unit: 10 ** Number(tokenMeta[token]['decimals'])
-            });
+            const contract = token.replace('ethereum-classic-erc-20/', '').toLowerCase();
+            const erc20 = validTokens.find(e => e.contract === contract);
+            if (erc20) {
+                tokens.push({
+                    name: erc20.name, address: contract, value: Number(erc20Obj[token]['balance']), unit: 10 ** Number(tokenMeta[token]['decimals'])
+                });
+            }
         }
 
         return { balance: Number(balance), tokens: tokens };

@@ -17,12 +17,6 @@ export class Ethereum implements Blockchain {
     color = '103';
     helper: Helper;
 
-    private erc20Tokens = [
-        { name: 'USDC', contract: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'},
-        { name: 'USDT', contract: '0xdac17f958d2ee523a2206206994597c13d831ec7'},
-        { name: 'DAI', contract: '0x6b175474e89094c44da98b954eedeac495271d0f'}
-    ];     
-
     private unit = 'gwei/gas';
     private wei = 10 ** 18;
     private gWei = 10 ** 9;    
@@ -218,9 +212,10 @@ export class Ethereum implements Blockchain {
 
         // fetch all ERC-20 tokens
         const erc20Obj = balances['ethereum-erc-20'];
+        const validTokens = this.helper.getValidTokens(this.coin);
         for (const token in erc20Obj) {
             const contract = token.replace('ethereum-erc-20/', '').toLowerCase();
-            const erc20 = this.erc20Tokens.find(e => e.contract === contract);
+            const erc20 = validTokens.find(e => e.contract === contract);
             if (erc20) {
                 tokens.push({
                     name: erc20.name, address: contract, value: Number(erc20Obj[token]['balance']), unit: 10 ** Number(tokenMeta[token]['decimals'])
