@@ -95,12 +95,6 @@ export class Helper {
         return this.chainRegistry.find(c => c.coin === coinType);
     }
 
-    getAPIKey(name: string): string {
-        const stmt = this.db.prepare('select * from t_apikey where name = ?');
-        const row: any = stmt.get(name);
-        return aes256gcmDecode(Buffer.from(row.key, 'hex'), name).toString('utf8');
-    }
-
     getAllAccounts(): any {
         const stmt = this.db.prepare('select * from t_account');
         const accounts = stmt.all();
@@ -112,6 +106,11 @@ export class Helper {
 
     aggAllAccounts(): any {
         const stmt = this.db.prepare('select sum(a.balance) balance, a.name, b.coin_type from t_address a inner join t_account b on a.name = b.name group by a.name');
+        return stmt.all();
+    }
+
+    aggAllTokens(): any {
+        const stmt = this.db.prepare('select sum(balance) balance, name, contract from t_token group by name, contract');
         return stmt.all();
     }
 
@@ -151,17 +150,14 @@ export class Helper {
         return stmt.all(accountName, 0);
     }
 
-    updateDb(accountName: string, i: string, value: number): void {
-        const stmt = this.db.prepare('select * from t_address where name = ? and idx = ?');
-        const addr_row: any = stmt.get(accountName, Number(i));
+    updateToken(accountName: string, i: string, contract: string, value: number): void {
+        const stmt = this.db.prepare('insert into t_token (name, idx, contract, balance) VALUES (?, ?, ?, ?) ON CONFLICT(name, idx, contract) DO UPDATE SET balance = excluded.balance');
+        stmt.run(accountName, Number(i), contract, value);
+    }
 
-        if (!addr_row && value > 0) {
-            const stmt = this.db.prepare('insert into t_address (name, idx, balance) values (?, ?, ?)');
-            stmt.run(accountName, Number(i), value);
-        } else if (addr_row) {
-            const stmt = this.db.prepare('update t_address set balance = ? where name = ? and idx = ?');
-            stmt.run(value, accountName, Number(i));
-        }
+    updateDb(accountName: string, i: string, value: number): void {
+        const stmt = this.db.prepare('insert into t_address (name, idx, balance) VALUES (?, ?, ?) ON CONFLICT(name, idx) DO UPDATE SET balance = excluded.balance');
+        stmt.run(accountName, Number(i), value);
     }
 
     validateAmount(value: string, remainAmt: number): boolean {

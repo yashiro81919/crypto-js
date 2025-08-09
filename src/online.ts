@@ -92,6 +92,7 @@ async function managePortfolio(): Promise<void> {
         let total = 0;
 
         const rows = helper.aggAllAccounts();
+        const tokens = helper.aggAllTokens();
         console.log(`-----------Total Assets-------------------`);
         rows.forEach(row => {
             const blockchain = helper.getBlockchain(row['coin_type']);
@@ -100,7 +101,12 @@ async function managePortfolio(): Promise<void> {
             const price = rates[coinMap.get(blockchain.token)]['usd'];
             const amount = (balance * price).toFixed(2);
             total += Number(amount);
-            helper.print(blockchain.color, `|${blockchain.chain}|${accName}|${balance}|${price}|${amount}`);
+            helper.print(blockchain.color, `|${blockchain.chain}|${accName}|${blockchain.token}|${balance}|${price}|${amount}`);
+            tokens.filter(t => t['name'] === accName).forEach(t => {
+                const erc20Tokens = blockchain['erc20Tokens'];
+                const token = erc20Tokens.find(e => e.contract === t['contract']);
+                helper.print(blockchain.color, `|${blockchain.chain}|${accName}|${token.name}|${t['balance']}|1|${t['balance']}`);
+            });
         });
         console.log(`------------------------------------------`);
         helper.print('255', `Total Balance: ${total.toFixed(2)}`);

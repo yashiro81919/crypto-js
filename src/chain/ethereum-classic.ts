@@ -1,4 +1,4 @@
-import { input, confirm, select } from '@inquirer/prompts';
+import { input, confirm, select, password } from '@inquirer/prompts';
 import { encode as rlpEncode } from 'rlp';
 import { Helper } from '../helper';
 import { BIP32Interface } from 'bip32';
@@ -9,7 +9,7 @@ import * as fs from 'fs/promises';
 
 export class EthereumClassic implements Blockchain {
     chain = 'Ethereum Classic';
-    token = 'ETC';    
+    token = 'ETC';
     purpose = '44';
     coin = '61';
     account = '0';
@@ -91,7 +91,7 @@ export class EthereumClassic implements Blockchain {
                 { value: 0, name: `transfer ${this.token}` }
             ]
         });
-        
+
         if (type === 0) {
             inBalance = addrObj.balance;
             txUint = this.wei;
@@ -132,7 +132,7 @@ export class EthereumClassic implements Blockchain {
         console.log(`gas: ${gas}`);
         console.log('----------------------------------');
 
-        const pk = await input({ message: `Type private key for address [${tx.input}]: `, required: true });
+        const pk = await password({ message: `Type private key for address [${tx.input}]: `, mask: '*' });
 
         let to: string;
         let value: number;
@@ -197,8 +197,10 @@ export class EthereumClassic implements Blockchain {
         // fetch all ERC-20 tokens
         const erc20Obj = balances['ethereum-classic-erc-20'];
         for (const token in erc20Obj) {
-            tokens.push({ name: tokenMeta[token]['symbol'], address: token.replace('ethereum-classic-erc-20/', '').toLowerCase(),
-                 value: Number(erc20Obj[token]['balance']), unit: 10 ** Number(tokenMeta[token]['decimals']) });
+            tokens.push({
+                name: tokenMeta[token]['symbol'], address: token.replace('ethereum-classic-erc-20/', '').toLowerCase(),
+                value: Number(erc20Obj[token]['balance']), unit: 10 ** Number(tokenMeta[token]['decimals'])
+            });
         }
 
         return { balance: Number(balance), tokens: tokens };
@@ -210,7 +212,7 @@ export class EthereumClassic implements Blockchain {
         const index = lines.findIndex(l => l.includes('Nonce:'));
         const nonce = lines[index + 1].replace(/<[^>]*>/g, '').trim();
         return Number(nonce);
-    }    
+    }
 
     private async getFee(): Promise<number> {
         const resp = await this.helper.api.get(`https://etc.blockscout.com/api/v2/stats`);

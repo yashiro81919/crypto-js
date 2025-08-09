@@ -1,4 +1,4 @@
-import { input, confirm, select } from '@inquirer/prompts';
+import { input, confirm, select, password } from '@inquirer/prompts';
 import { encode as rlpEncode } from 'rlp';
 import { Helper } from '../helper';
 import { BIP32Interface } from 'bip32';
@@ -9,7 +9,7 @@ import * as fs from 'fs/promises';
 
 export class Ethereum implements Blockchain {
     chain = 'Ethereum';
-    token = 'ETH';        
+    token = 'ETH';
     purpose = '44';
     coin = '60';
     account = '0';
@@ -17,9 +17,15 @@ export class Ethereum implements Blockchain {
     color = '103';
     helper: Helper;
 
+    private erc20Tokens = [
+        { name: 'USDC', contract: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'},
+        { name: 'USDT', contract: '0xdac17f958d2ee523a2206206994597c13d831ec7'},
+        { name: 'DAI', contract: '0x6b175474e89094c44da98b954eedeac495271d0f'}
+    ];     
+
     private unit = 'gwei/gas';
     private wei = 10 ** 18;
-    private gWei = 10 ** 9;
+    private gWei = 10 ** 9;    
 
     constructor(helper: Helper) {
         this.helper = helper;
@@ -48,7 +54,10 @@ export class Ethereum implements Blockchain {
         this.helper.print(this.color, `|${index}|${address}|${addr.balance / this.wei}`);
 
         this.helper.print(this.color, '---------------------Ethereum ERC20---------------------');
-        addr.tokens.forEach(token => this.helper.print(this.color, `|${token.name}|${token.address}|${token.value / token.unit}`));
+        addr.tokens.forEach(token => {
+            this.helper.updateToken(accountName, index, token.address, token.value / token.unit);
+            this.helper.print(this.color, `|${token.name}|${token.address}|${token.value / token.unit}`);
+        });        
 
         this.helper.updateDb(accountName, index, addr.balance / this.wei);
     }
@@ -105,7 +114,7 @@ export class Ethereum implements Blockchain {
                 message: 'Choose ERC20 token: ', choices: addrObj.tokens.map(t => {
                     return { value: t.address, name: t.name };
                 })
-            });            
+            });
             tokenObj = addrObj.tokens.find(t => t.address === token);
             inBalance = tokenObj.value;
             txUint = tokenObj.unit;
@@ -146,7 +155,7 @@ export class Ethereum implements Blockchain {
         console.log(`gas: ${gas}`);
         console.log('----------------------------------');
 
-        const pk = await input({ message: `Type private key for address [${tx.input}]: `, required: true });
+        const pk = await password({ message: `Type private key for address [${tx.input}]: `, mask: '*' });
 
         let to: string;
         let value: number;
@@ -165,8 +174,8 @@ export class Ethereum implements Blockchain {
         const unsignedTx = [
             1n, // chainId
             tx['nonce'],  // nonce
-            tx['fee'] , // maxPriorityFeePerGas
-            tx['fee'] , // maxFeePerGas
+            tx['fee'], // maxPriorityFeePerGas
+            tx['fee'], // maxFeePerGas
             gas,  // gasLimit
             Buffer.from(to, 'hex'), // to address
             value,  // value
@@ -210,8 +219,13 @@ export class Ethereum implements Blockchain {
         // fetch all ERC-20 tokens
         const erc20Obj = balances['ethereum-erc-20'];
         for (const token in erc20Obj) {
-            tokens.push({ name: tokenMeta[token]['symbol'], address: token.replace('ethereum-erc-20/', '').toLowerCase(),
-                 value: Number(erc20Obj[token]['balance']), unit: 10 ** Number(tokenMeta[token]['decimals']) });
+            const contract = token.replace('ethereum-erc-20/', '').toLowerCase();
+            const erc20 = this.erc20Tokens.find(e => e.contract === contract);
+            if (erc20) {
+                tokens.push({
+                    name: erc20.name, address: contract, value: Number(erc20Obj[token]['balance']), unit: 10 ** Number(tokenMeta[token]['decimals'])
+                });
+            }
         }
 
         return { balance: Number(balance), tokens: tokens };

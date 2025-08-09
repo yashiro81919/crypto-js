@@ -1,4 +1,4 @@
-import { input, confirm } from '@inquirer/prompts';
+import { input, confirm, password } from '@inquirer/prompts';
 import { Helper } from '../helper';
 import { BIP32Interface } from 'bip32';
 import { secp256k1 } from '@noble/curves/secp256k1';
@@ -185,7 +185,7 @@ export class DigiByte implements Blockchain {
         // collect pk and associated to address
         const keyMap = new Map<string, string>();
         for (const address of addresses) {
-            const pk = await input({ message: `Type private key for address [${address}]: `, required: true });
+            const pk = await password({ message: `Type private key for address [${address}]: `, mask: '*' });
             keyMap.set(address, pk);
         }
 

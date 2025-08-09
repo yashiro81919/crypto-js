@@ -1,4 +1,4 @@
-import { input, confirm, select } from '@inquirer/prompts';
+import { input, confirm, select, password } from '@inquirer/prompts';
 import { encode as rlpEncode } from 'rlp';
 import { Helper } from '../helper';
 import { BIP32Interface } from 'bip32';
@@ -9,13 +9,19 @@ import * as fs from 'fs/promises';
 
 export class Optimism implements Blockchain {
     chain = 'Optimism';
-    token = 'ETH';    
+    token = 'ETH';
     purpose = '44';
     coin = '614';
     account = '0';
     change = '0';
     color = '196';
     helper: Helper;
+
+    erc20Tokens = [
+        { name: 'USDC', contract: '0x0b2c639c533813f4aa9d7837caf62653d097ff85'},
+        { name: 'USDT', contract: '0x94b008aa00579c1307b0ef2c499ad98a8ce58e58'},
+        { name: 'DAI', contract: '0xda10009cbd5d07dd0cecc66161fc93d7c9000da1'}
+    ];    
 
     private unit = 'gwei/gas';
     private wei = 10 ** 18;
@@ -48,7 +54,10 @@ export class Optimism implements Blockchain {
         this.helper.print(this.color, `|${index}|${address}|${addr.balance / this.wei}`);
 
         this.helper.print(this.color, '---------------------Optimism ERC20---------------------');
-        addr.tokens.forEach(token => this.helper.print(this.color, `|${token.name}|${token.address}|${token.value / token.unit}`));
+        addr.tokens.forEach(token => {
+            this.helper.updateToken(accountName, index, token.address, token.value / token.unit);
+            this.helper.print(this.color, `|${token.name}|${token.address}|${token.value / token.unit}`);
+        });
 
         this.helper.updateDb(accountName, index, addr.balance / this.wei);
     }
@@ -102,11 +111,11 @@ export class Optimism implements Blockchain {
             txUint = this.wei;
         } else {
             const token = await select({
-                message: 'Choose ERC20 token: ', choices:  addrObj.tokens.map(t => {
+                message: 'Choose ERC20 token: ', choices: addrObj.tokens.map(t => {
                     return { value: t.address, name: t.name };
                 })
-            });            
-            tokenObj =  addrObj.tokens.find(t => t.address === token);
+            });
+            tokenObj = addrObj.tokens.find(t => t.address === token);
             inBalance = tokenObj.value;
             txUint = tokenObj.unit;
         }
@@ -146,7 +155,7 @@ export class Optimism implements Blockchain {
         console.log(`gas: ${gas}`);
         console.log('----------------------------------');
 
-        const pk = await input({ message: `Type private key for address [${tx.input}]: `, required: true });
+        const pk = await password({ message: `Type private key for address [${tx.input}]: `, mask: '*' });
 
         let to: string;
         let value: number;
@@ -165,8 +174,8 @@ export class Optimism implements Blockchain {
         const unsignedTx = [
             10n, // chainId
             tx['nonce'],  // nonce
-            tx['fee'] , // maxPriorityFeePerGas
-            tx['fee'] , // maxFeePerGas
+            tx['fee'], // maxPriorityFeePerGas
+            tx['fee'], // maxFeePerGas
             gas,  // gasLimit
             Buffer.from(to, 'hex'), // to address
             value,  // value
@@ -210,8 +219,13 @@ export class Optimism implements Blockchain {
         // fetch all ERC-20 tokens
         const erc20Obj = balances['optimism-erc-20'];
         for (const token in erc20Obj) {
-            tokens.push({ name: tokenMeta[token]['symbol'], address: token.replace('optimism-erc-20/', '').toLowerCase(),
-                 value: Number(erc20Obj[token]['balance']), unit: 10 ** Number(tokenMeta[token]['decimals']) });
+            const contract = token.replace('optimism-erc-20/', '').toLowerCase();
+            const erc20 = this.erc20Tokens.find(e => e.contract === contract);
+            if (erc20) {
+                tokens.push({
+                    name: erc20.name, address: contract, value: Number(erc20Obj[token]['balance']), unit: 10 ** Number(tokenMeta[token]['decimals'])
+                });
+            }
         }
 
         return { balance: Number(balance), tokens: tokens };
@@ -223,7 +237,7 @@ export class Optimism implements Blockchain {
         const index = lines.findIndex(l => l.includes('Nonce:'));
         const nonce = lines[index + 1].replace(/<[^>]*>/g, '').trim();
         return Number(nonce);
-    }    
+    }
 
     private async getFee(): Promise<number> {
         const resp = await this.helper.api.get(`https://explorer.optimism.io/api/v2/stats`);
