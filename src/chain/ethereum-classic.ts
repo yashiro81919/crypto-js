@@ -83,7 +83,8 @@ export class EthereumClassic implements Blockchain {
         let inBalance: number;
         let txUint: number;
         const addrObj = await this.getAddr(inputAddr);
-        const nonce = await this.getNonce(inputAddr);
+        const inputNonce = await input({ message: `Type Nonce: `, default: '0', validate: this.helper.isInteger });
+        const nonce = Number(inputNonce);
 
         // choose transfer type
         const type = await select({
@@ -118,7 +119,7 @@ export class EthereumClassic implements Blockchain {
 
         const status = await confirm({ message: 'Continue to create transaction: ' });
         if (status) {
-            const tx = { coin: this.coin, fee: feeW, nonce: nonce, type: type, input: inputAddr, output: outputAddr, balance: inBalance, amount: outBalance };
+            const tx = { coin: this.coin, fee: feeW, nonce: nonce, type: type, input: inputAddr, output: outputAddr, balance: this.helper.convertBigInt(inBalance), amount: this.helper.convertBigInt(outBalance) };
             fs.writeFile(this.helper.TX_FILE, JSON.stringify(tx), 'utf8');
         }
     }
@@ -208,14 +209,6 @@ export class EthereumClassic implements Blockchain {
         }
 
         return { balance: Number(balance), tokens: tokens };
-    }
-
-    private async getNonce(address: string): Promise<number> {
-        const resp = await this.helper.api.get(`https://3xpl.com/ethereum-classic/address/${address}`);
-        const lines = resp.data.split('\n');
-        const index = lines.findIndex(l => l.includes('Nonce:'));
-        const nonce = lines[index + 1].replace(/<[^>]*>/g, '').trim();
-        return Number(nonce);
     }
 
     private async getFee(): Promise<number> {

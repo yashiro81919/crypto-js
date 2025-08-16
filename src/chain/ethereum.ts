@@ -19,7 +19,7 @@ export class Ethereum implements Blockchain {
 
     private unit = 'gwei/gas';
     private wei = 10 ** 18;
-    private gWei = 10 ** 9;    
+    private gWei = 10 ** 9;
 
     constructor(helper: Helper) {
         this.helper = helper;
@@ -51,7 +51,7 @@ export class Ethereum implements Blockchain {
         addr.tokens.forEach(token => {
             this.helper.updateToken(accountName, index, token.address, token.value / token.unit);
             this.helper.print(this.color, `|${token.name}|${token.address}|${token.value / token.unit}`);
-        });        
+        });
 
         this.helper.updateDb(accountName, index, addr.balance / this.wei);
     }
@@ -90,7 +90,8 @@ export class Ethereum implements Blockchain {
         let txUint: number;
         let tokenObj: any = {};
         const addrObj = await this.getAddr(inputAddr);
-        const nonce = await this.getNonce(inputAddr);
+        const inputNonce = await input({ message: `Type Nonce: `, default: '0', validate: this.helper.isInteger });
+        const nonce = Number(inputNonce);
 
         // choose transfer type
         const type = await select({
@@ -135,7 +136,7 @@ export class Ethereum implements Blockchain {
 
         const status = await confirm({ message: 'Continue to create transaction: ' });
         if (status) {
-            const tx = { coin: this.coin, fee: feeW, nonce: nonce, type: type, token: tokenObj.address, input: inputAddr, output: outputAddr, balance: inBalance, amount: outBalance };
+            const tx = { coin: this.coin, fee: feeW, nonce: nonce, type: type, token: tokenObj.address, input: inputAddr, output: outputAddr, balance: this.helper.convertBigInt(inBalance), amount: this.helper.convertBigInt(outBalance) };
             fs.writeFile(this.helper.TX_FILE, JSON.stringify(tx), 'utf8');
         }
     }
@@ -162,7 +163,7 @@ export class Ethereum implements Blockchain {
         } else {
             to = this.helper.strip0x(tx['token']);
             value = 0;
-            txData = Buffer.from(this.helper.strip0x(this.encodeERC20Transfer(tx['output'], tx['amount'])), 'hex');
+            txData = Buffer.from(this.helper.strip0x(this.encodeERC20Transfer(tx['output'], BigInt(tx['amount']))), 'hex');
         }
 
         const unsignedTx = [
@@ -224,14 +225,6 @@ export class Ethereum implements Blockchain {
         }
 
         return { balance: Number(balance), tokens: tokens };
-    }
-
-    private async getNonce(address: string): Promise<number> {
-        const resp = await this.helper.api.get(`https://3xpl.com/ethereum/address/${address}`);
-        const lines = resp.data.split('\n');
-        const index = lines.findIndex(l => l.includes('Nonce:'));
-        const nonce = lines[index + 1].replace(/<[^>]*>/g, '').trim();
-        return Number(nonce);
     }
 
     private async getFee(): Promise<number> {

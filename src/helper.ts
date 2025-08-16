@@ -53,7 +53,10 @@ export class Helper {
 
         // init network
         const config: AxiosRequestConfig = {};
-        config.headers = { 'Content-Type': 'application/json' };
+        config.headers = {
+            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Content-Type': 'application/json'
+        };
         config.validateStatus = () => true;
 
         if (process.env.APP_STAGE !== 'prd') {
@@ -270,5 +273,14 @@ export class Helper {
         const decimal = this.uint8ArrayToBigInt(val);
         const hex = decimal.toString(16);
         return hex.slice(0, -8);
+    }
+
+    // javascript may output 1.078872530222e+22 for big number, so need to convert it before send the tx
+    convertBigInt(val: number): string {
+        let str = val.toString();
+        if (str.includes('e+')) {
+            str = val.toLocaleString("fullwide", { useGrouping: false });
+        }
+        return str;
     }
 }
