@@ -116,7 +116,7 @@ export class Helper {
 
     getValidTokens(coinType: string): any[] {
         const stmt = this.db.prepare('select * from t_valid_token where coin_type = ?');
-        return stmt.all(coinType);        
+        return stmt.all(coinType);
     }
 
     addAccount(name: string, pubKey: string, coinType: string): void {
@@ -156,13 +156,23 @@ export class Helper {
     }
 
     updateToken(accountName: string, i: string, contract: string, value: number): void {
-        const stmt = this.db.prepare('insert into t_token (name, idx, contract, balance) VALUES (?, ?, ?, ?) ON CONFLICT(name, idx, contract) DO UPDATE SET balance = excluded.balance');
-        stmt.run(accountName, Number(i), contract, value);
+        if (value === 0) {
+            const stmt = this.db.prepare('delete from t_token where name = ? and idx = ? and contract = ?');
+            stmt.run(accountName, Number(i), contract);
+        } else {
+            const stmt = this.db.prepare('insert into t_token (name, idx, contract, balance) VALUES (?, ?, ?, ?) ON CONFLICT(name, idx, contract) DO UPDATE SET balance = excluded.balance');
+            stmt.run(accountName, Number(i), contract, value);
+        }
     }
 
     updateDb(accountName: string, i: string, value: number): void {
-        const stmt = this.db.prepare('insert into t_address (name, idx, balance) VALUES (?, ?, ?) ON CONFLICT(name, idx) DO UPDATE SET balance = excluded.balance');
-        stmt.run(accountName, Number(i), value);
+        if (value === 0) {
+            const stmt = this.db.prepare('delete from t_address where name = ? and idx = ?');
+            stmt.run(accountName, Number(i));
+        } else {
+            const stmt = this.db.prepare('insert into t_address (name, idx, balance) VALUES (?, ?, ?) ON CONFLICT(name, idx) DO UPDATE SET balance = excluded.balance');
+            stmt.run(accountName, Number(i), value);
+        }
     }
 
     validateAmount(value: string, remainAmt: number): boolean {

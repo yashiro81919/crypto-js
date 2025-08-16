@@ -112,7 +112,7 @@ async function managePortfolio(): Promise<void> {
         console.log(`------------------------------------------`);
         helper.print('255', `Total Balance: ${total.toFixed(2)}`);
         const cost = helper.getCost();
-        helper.print('255', `Total Cost: ${cost}`);
+        helper.print('255', `Total Cost: ${cost.toFixed(2)}`);
         helper.print('255', `Total Profit: ${(total - cost).toFixed(2)}`);
     } else if (step === 1) {
         const cost = helper.getCost();
