@@ -105,8 +105,12 @@ async function managePortfolio(): Promise<void> {
             const validTokens = helper.getValidTokens(blockchain.coin);
             tokens.filter(t => t['name'] === accName).forEach(t => {
                 const token = validTokens.find(v => v.contract === t['contract']);
-                total += Number(t['balance']);
-                helper.print(blockchain.color, `|${blockchain.chain}|${accName}|${token.name}|${t['balance']}|1|${t['balance']}`);
+                const coinStr = coinMap.get(token.name);
+                // support OP and ARB, others are stable coin, so always 1
+                const tokenPrice = coinStr ? rates[coinStr]['usd'] : 1;
+                const tokenAmount = (t['balance'] * tokenPrice).toFixed(2);
+                total += Number(tokenAmount);
+                helper.print(blockchain.color, `|${blockchain.chain}|${accName}|${token.name}|${t['balance']}|${tokenPrice}|${tokenAmount}`);
             });
         });
         console.log(`------------------------------------------`);
