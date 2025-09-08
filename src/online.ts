@@ -79,7 +79,6 @@ async function managePortfolio(): Promise<void> {
         coinMap.set('BCH', 'bitcoin-cash');
         coinMap.set('LTC', 'litecoin');
         coinMap.set('DOGE', 'dogecoin');
-        coinMap.set('DGB', 'digibyte');
         coinMap.set('ETH', 'ethereum');
         coinMap.set('ETC', 'ethereum-classic');
         coinMap.set('POL', 'matic');
@@ -102,15 +101,13 @@ async function managePortfolio(): Promise<void> {
             const amount = (balance * price).toFixed(2);
             total += Number(amount);
             helper.print(blockchain.color, `|${blockchain.chain}|${accName}|${blockchain.token}|${balance}|${price}|${amount}`);
-            const validTokens = helper.getValidTokens(blockchain.coin);
             tokens.filter(t => t['name'] === accName).forEach(t => {
-                const token = validTokens.find(v => v.contract === t['contract']);
-                const coinStr = coinMap.get(token.name);
+                const coinStr = coinMap.get(t['symbol']);
                 // support OP and ARB, others are stable coin, so always 1
                 const tokenPrice = coinStr ? rates[coinStr]['usd'] : 1;
                 const tokenAmount = (t['balance'] * tokenPrice).toFixed(2);
                 total += Number(tokenAmount);
-                helper.print(blockchain.color, `|${blockchain.chain}|${accName}|${token.name}|${t['balance']}|${tokenPrice}|${tokenAmount}`);
+                helper.print(blockchain.color, `|${blockchain.chain}|${accName}|${t['symbol']}|${t['balance']}|${tokenPrice}|${tokenAmount}`);
             });
         });
         console.log(`------------------------------------------`);

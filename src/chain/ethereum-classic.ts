@@ -83,8 +83,7 @@ export class EthereumClassic implements Blockchain {
         let inBalance: number;
         let txUint: number;
         const addrObj = await this.getAddr(inputAddr);
-        const inputNonce = await input({ message: `Type Nonce: `, default: '0', validate: this.helper.isInteger });
-        const nonce = Number(inputNonce);
+        const nonce = await this.getNonce(inputAddr);
 
         // choose transfer type
         const type = await select({
@@ -188,27 +187,27 @@ export class EthereumClassic implements Blockchain {
     }
 
     private async getAddr(address: string): Promise<any> {
-        const resp = await this.helper.api.get(`https://sandbox-api.3xpl.com/ethereum-classic/address/${address}?data=balances&from=all&library=currencies`);
-        const balances = resp.data['data']['balances'];
-        const tokenMeta = resp.data['library']['currencies'];
-
-        const balance = balances['ethereum-classic-main']['ethereum-classic']['balance'];
+        const resp = await this.helper.api.get(`https://etc.blockscout.com/api/v2/addresses/${address}`);
+        const balance = resp.data['coin_balance'] ? resp.data['coin_balance'] : '0';
         const tokens = [];
 
-        // fetch all ERC-20 tokens
-        const erc20Obj = balances['ethereum-classic-erc-20'];
-        const validTokens = this.helper.getValidTokens(this.coin);
-        for (const token in erc20Obj) {
-            const contract = token.replace('ethereum-classic-erc-20/', '').toLowerCase();
-            const erc20 = validTokens.find(e => e.contract === contract);
-            if (erc20) {
+        if (resp.data['has_tokens']) {
+            const respToken = await this.helper.api.get(`https://etc.blockscout.com/api/v2/addresses/${address}/tokens?type=ERC-20`);
+            const validTokens = respToken.data['items'].filter(t => t['token']['exchange_rate']);
+            for (const token of validTokens) {
+                const tokenMeta = token['token'];
                 tokens.push({
-                    name: erc20.name, address: contract, value: Number(erc20Obj[token]['balance']), unit: 10 ** Number(tokenMeta[token]['decimals'])
+                    name: tokenMeta['symbol'], address: tokenMeta['address_hash'].toLowerCase(), value: Number(token['value']), unit: 10 ** Number(tokenMeta['decimals'])
                 });
-            }
+            }            
         }
-
         return { balance: Number(balance), tokens: tokens };
+    }
+
+    private async getNonce(address: string): Promise<number> {
+        const resp = await this.helper.api.post(`https://etc.rivet.link`, {jsonrpc: '2.0', method: 'eth_getTransactionCount', params: [address,'latest'], id: '1'});
+        const nonce = resp.data['result'] ? resp.data['result'] : '0';
+        return Number(nonce);
     }
 
     private async getFee(): Promise<number> {

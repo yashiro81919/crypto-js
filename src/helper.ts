@@ -9,7 +9,6 @@ import { SocksProxyAgent } from 'socks-proxy-agent';
 import { aes256gcmDecode, aes256gcmEncode } from './aes';
 import { Blockchain } from './chain/blockchain';
 import { Bitcoin } from './chain/bitcoin';
-import { DigiByte } from './chain/digi-byte';
 import { BitcoinCash } from './chain/bitcoin-cash';
 import { Ethereum } from './chain/ethereum';
 import { EthereumClassic } from './chain/ethereum-classic';
@@ -34,7 +33,6 @@ export class Helper {
         this.chainRegistry.push(new Bitcoin(this));
         this.chainRegistry.push(new Litecoin(this));
         this.chainRegistry.push(new Dogecoin(this));
-        this.chainRegistry.push(new DigiByte(this));
         this.chainRegistry.push(new BitcoinCash(this));
         this.chainRegistry.push(new Monero(this));
         this.chainRegistry.push(new Ethereum(this));
@@ -113,13 +111,8 @@ export class Helper {
     }
 
     aggAllTokens(): any[] {
-        const stmt = this.db.prepare('select sum(balance) balance, name, contract from t_token group by name, contract');
+        const stmt = this.db.prepare('select sum(balance) balance, name, contract, symbol from t_token group by name, contract');
         return stmt.all();
-    }
-
-    getValidTokens(coinType: string): any[] {
-        const stmt = this.db.prepare('select * from t_valid_token where coin_type = ?');
-        return stmt.all(coinType);
     }
 
     addAccount(name: string, pubKey: string, coinType: string): void {
@@ -158,13 +151,13 @@ export class Helper {
         return stmt.all(accountName, 0);
     }
 
-    updateToken(accountName: string, i: string, contract: string, value: number): void {
+    updateToken(accountName: string, i: string, contract: string, value: number, tokenName: string): void {
         if (value === 0) {
             const stmt = this.db.prepare('delete from t_token where name = ? and idx = ? and contract = ?');
             stmt.run(accountName, Number(i), contract);
         } else {
-            const stmt = this.db.prepare('insert into t_token (name, idx, contract, balance) VALUES (?, ?, ?, ?) ON CONFLICT(name, idx, contract) DO UPDATE SET balance = excluded.balance');
-            stmt.run(accountName, Number(i), contract, value);
+            const stmt = this.db.prepare('insert into t_token (name, idx, contract, balance, symbol) VALUES (?, ?, ?, ?, ?) ON CONFLICT(name, idx, contract) DO UPDATE SET balance = excluded.balance');
+            stmt.run(accountName, Number(i), contract, value, tokenName);
         }
     }
 
