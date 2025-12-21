@@ -18,6 +18,7 @@ import { Optimism } from './chain/optimism';
 import { Arbitrum } from './chain/arbitrum';
 import { Litecoin } from './chain/litecoin';
 import { Monero } from './chain/monero';
+import { Dash } from './chain/dash';
 
 export class Helper {
 
@@ -34,6 +35,7 @@ export class Helper {
         this.chainRegistry.push(new Litecoin(this));
         this.chainRegistry.push(new Dogecoin(this));
         this.chainRegistry.push(new BitcoinCash(this));
+        this.chainRegistry.push(new Dash(this));
         this.chainRegistry.push(new Monero(this));
         this.chainRegistry.push(new Ethereum(this));
         this.chainRegistry.push(new EthereumClassic(this));
