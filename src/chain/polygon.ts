@@ -21,6 +21,12 @@ export class Polygon implements Blockchain {
     private wei = 10 ** 18;
     private gWei = 10 ** 9;
 
+    private supportedTokens = [
+        {name: 'USDT0', contract: '0xc2132d05d31c914a87c6611c10748aeb04b58e8f'},
+        {name: 'USDC', contract: '0x3c499c542cef5e3811e1192ce70d8cc03d5c3359'},
+        {name: 'DAI', contract: '0x8f3cf7ad23cd3cadbd9735aff958023239c6a063'}
+    ];     
+
     constructor(helper: Helper) {
         this.helper = helper;
     }
@@ -203,20 +209,25 @@ export class Polygon implements Blockchain {
     }
 
     private async getAddr(address: string): Promise<any> {
-        const resp = await this.helper.api.get(`https://polygon.blockscout.com/api/v2/addresses/${address}`);
-        const balance = resp.data['coin_balance'] ? resp.data['coin_balance'] : '0';
+        const resp = await this.helper.api.get(`https://sandbox-api.3xpl.com/polygon/address/${address}?data=balances&from=all&library=currencies`);
+        const balances = resp.data['data']['balances'];
+        const tokenMeta = resp.data['library']['currencies'];
+
+        const balance = balances['polygon-main']['matic']['balance'];
         const tokens = [];
 
-        if (resp.data['has_tokens']) {
-            const respToken = await this.helper.api.get(`https://polygon.blockscout.com/api/v2/addresses/${address}/tokens?type=ERC-20`);
-            const validTokens = respToken.data['items'].filter(t => t['token']['exchange_rate']);
-            for (const token of validTokens) {
-                const tokenMeta = token['token'];
+        // fetch all ERC-20 tokens
+        const erc20Obj = balances['polygon-erc-20'];
+        for (const token in erc20Obj) {
+            const contract = token.replace('polygon-erc-20/', '').toLowerCase();
+            const erc20 = this.supportedTokens.find(e => e.contract === contract);
+            if (erc20) {
                 tokens.push({
-                    name: tokenMeta['symbol'], address: tokenMeta['address_hash'].toLowerCase(), value: Number(token['value']), unit: 10 ** Number(tokenMeta['decimals'])
+                    name: erc20.name, address: contract, value: Number(erc20Obj[token]['balance']), unit: 10 ** Number(tokenMeta[token]['decimals'])
                 });
-            }            
+            }
         }
+
         return { balance: Number(balance), tokens: tokens };
     }
 

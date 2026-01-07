@@ -21,6 +21,13 @@ export class Optimism implements Blockchain {
     private wei = 10 ** 18;
     private gWei = 10 ** 9;
 
+    private supportedTokens = [
+        {name: 'OP', contract: '0x4200000000000000000000000000000000000042'},
+        {name: 'USDT', contract: '0x94b008aa00579c1307b0ef2c499ad98a8ce58e58'},
+        {name: 'USDC', contract: '0x0b2c639c533813f4aa9d7837caf62653d097ff85'},
+        {name: 'DAI', contract: '0xda10009cbd5d07dd0cecc66161fc93d7c9000da1'}
+    ];       
+
     constructor(helper: Helper) {
         this.helper = helper;
     }
@@ -203,20 +210,25 @@ export class Optimism implements Blockchain {
     }
 
     private async getAddr(address: string): Promise<any> {
-        const resp = await this.helper.api.get(`https://explorer.optimism.io/api/v2/addresses/${address}`);
-        const balance = resp.data['coin_balance'] ? resp.data['coin_balance'] : '0';
+        const resp = await this.helper.api.get(`https://sandbox-api.3xpl.com/optimism/address/${address}?data=balances&from=all&library=currencies`);
+        const balances = resp.data['data']['balances'];
+        const tokenMeta = resp.data['library']['currencies'];
+
+        const balance = balances['optimism-main']['ethereum']['balance'];
         const tokens = [];
 
-        if (resp.data['has_tokens']) {
-            const respToken = await this.helper.api.get(`https://explorer.optimism.io/api/v2/addresses/${address}/tokens?type=ERC-20`);
-            const validTokens = respToken.data['items'].filter(t => t['token']['exchange_rate']);
-            for (const token of validTokens) {
-                const tokenMeta = token['token'];
+        // fetch all ERC-20 tokens
+        const erc20Obj = balances['optimism-erc-20'];
+        for (const token in erc20Obj) {
+            const contract = token.replace('optimism-erc-20/', '').toLowerCase();
+            const erc20 = this.supportedTokens.find(e => e.contract === contract);
+            if (erc20) {
                 tokens.push({
-                    name: tokenMeta['symbol'], address: tokenMeta['address_hash'].toLowerCase(), value: Number(token['value']), unit: 10 ** Number(tokenMeta['decimals'])
+                    name: erc20.name, address: contract, value: Number(erc20Obj[token]['balance']), unit: 10 ** Number(tokenMeta[token]['decimals'])
                 });
-            }            
+            }
         }
+
         return { balance: Number(balance), tokens: tokens };
     }
 

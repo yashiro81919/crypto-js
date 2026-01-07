@@ -21,6 +21,13 @@ export class Ethereum implements Blockchain {
     private wei = 10 ** 18;
     private gWei = 10 ** 9;
 
+    private supportedTokens = [
+        {name: 'USDT', contract: '0xdac17f958d2ee523a2206206994597c13d831ec7'},
+        {name: 'USDC', contract: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'},
+        {name: 'USDS', contract: '0xdc035d45d973e3ec169d2276ddab16f1e407384f'},
+        {name: 'DAI', contract: '0x6b175474e89094c44da98b954eedeac495271d0f'}
+    ];
+
     constructor(helper: Helper) {
         this.helper = helper;
     }
@@ -203,20 +210,25 @@ export class Ethereum implements Blockchain {
     }
 
     private async getAddr(address: string): Promise<any> {
-        const resp = await this.helper.api.get(`https://eth.blockscout.com/api/v2/addresses/${address}`);
-        const balance = resp.data['coin_balance'] ? resp.data['coin_balance'] : '0';
+        const resp = await this.helper.api.get(`https://sandbox-api.3xpl.com/ethereum/address/${address}?data=balances&from=all&library=currencies`);
+        const balances = resp.data['data']['balances'];
+        const tokenMeta = resp.data['library']['currencies'];
+
+        const balance = balances['ethereum-main']['ethereum']['balance'];
         const tokens = [];
 
-        if (resp.data['has_tokens']) {
-            const respToken = await this.helper.api.get(`https://eth.blockscout.com/api/v2/addresses/${address}/tokens?type=ERC-20`);
-            const validTokens = respToken.data['items'].filter(t => t['token']['exchange_rate']);
-            for (const token of validTokens) {
-                const tokenMeta = token['token'];
+        // fetch all ERC-20 tokens
+        const erc20Obj = balances['ethereum-erc-20'];
+        for (const token in erc20Obj) {
+            const contract = token.replace('ethereum-erc-20/', '').toLowerCase();
+            const erc20 = this.supportedTokens.find(e => e.contract === contract);
+            if (erc20) {
                 tokens.push({
-                    name: tokenMeta['symbol'], address: tokenMeta['address_hash'].toLowerCase(), value: Number(token['value']), unit: 10 ** Number(tokenMeta['decimals'])
+                    name: erc20.name, address: contract, value: Number(erc20Obj[token]['balance']), unit: 10 ** Number(tokenMeta[token]['decimals'])
                 });
-            }            
+            }
         }
+
         return { balance: Number(balance), tokens: tokens };
     }
 

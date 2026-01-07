@@ -21,6 +21,9 @@ export class EthereumClassic implements Blockchain {
     private wei = 10 ** 18;
     private gWei = 10 ** 9;
 
+    private supportedTokens = [
+    ];
+
     constructor(helper: Helper) {
         this.helper = helper;
     }
@@ -187,20 +190,25 @@ export class EthereumClassic implements Blockchain {
     }
 
     private async getAddr(address: string): Promise<any> {
-        const resp = await this.helper.api.get(`https://etc.blockscout.com/api/v2/addresses/${address}`);
-        const balance = resp.data['coin_balance'] ? resp.data['coin_balance'] : '0';
+        const resp = await this.helper.api.get(`https://sandbox-api.3xpl.com/ethereum-classic/address/${address}?data=balances&from=all&library=currencies`);
+        const balances = resp.data['data']['balances'];
+        const tokenMeta = resp.data['library']['currencies'];
+
+        const balance = balances['ethereum-classic-main']['ethereum-classic']['balance'];
         const tokens = [];
 
-        if (resp.data['has_tokens']) {
-            const respToken = await this.helper.api.get(`https://etc.blockscout.com/api/v2/addresses/${address}/tokens?type=ERC-20`);
-            const validTokens = respToken.data['items'].filter(t => t['token']['exchange_rate']);
-            for (const token of validTokens) {
-                const tokenMeta = token['token'];
+        // fetch all ERC-20 tokens
+        const erc20Obj = balances['ethereum-classic-erc-20'];
+        for (const token in erc20Obj) {
+            const contract = token.replace('ethereum-classic-erc-20/', '').toLowerCase();
+            const erc20 = this.supportedTokens.find(e => e.contract === contract);
+            if (erc20) {
                 tokens.push({
-                    name: tokenMeta['symbol'], address: tokenMeta['address_hash'].toLowerCase(), value: Number(token['value']), unit: 10 ** Number(tokenMeta['decimals'])
+                    name: erc20.name, address: contract, value: Number(erc20Obj[token]['balance']), unit: 10 ** Number(tokenMeta[token]['decimals'])
                 });
-            }            
+            }
         }
+
         return { balance: Number(balance), tokens: tokens };
     }
 
