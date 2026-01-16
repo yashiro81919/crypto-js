@@ -23,7 +23,7 @@ export class Arbitrum implements Blockchain {
 
     private supportedTokens = [
         {name: 'ARB', contract: '0x912ce59144191c1204e64559fe8253a0e49e6548'},
-        {name: 'USD₮0', contract: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9'},
+        {name: 'USDT', contract: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9'},
         {name: 'USDC', contract: '0xaf88d065e77c8cc2239327c5edb3a432268e5831'},
         {name: 'USDS', contract: '0x6491c05a82219b8d1479057361ff1654749b876b'},
         {name: 'DAI', contract: '0xda10009cbd5d07dd0cecc66161fc93d7c9000da1'}
