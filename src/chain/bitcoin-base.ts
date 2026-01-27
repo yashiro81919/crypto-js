@@ -64,6 +64,7 @@ export abstract class BitcoinBase implements Blockchain {
         const usingAddrs = this.helper.getUsingAddresses(accountName);
 
         for (const a of usingAddrs) {
+            await this.helper.sleep(500);
             const ck = xpub.derivePath(`${String(this.account)}/${a.idx}`);
             const address = this.getAddress(ck);
 

@@ -295,4 +295,8 @@ export class Helper {
         const [i, d = ''] = value.split('.');
         return BigInt(i + d.padEnd(decimals, '0'));
     }
+
+    sleep(ms: number): Promise<void> {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }    
 }

@@ -64,9 +64,10 @@ export abstract class EthereumBase implements Blockchain {
 
     async showUsingAddresses(xpub: BIP32Interface, accountName: string): Promise<void> {
         let total = 0n;
-        const using_addrs = this.helper.getUsingAddresses(accountName);
+        const usingAddrs = this.helper.getUsingAddresses(accountName);
 
-        for (const a of using_addrs) {
+        for (const a of usingAddrs) {
+            await this.helper.sleep(500);
             const ck = xpub.derivePath(`${String(this.account)}/${a.idx}`);
             const fullPubKey = this.helper.decompressPublicKey(ck.publicKey);
             const address = this.getEthereumAddress(fullPubKey);
