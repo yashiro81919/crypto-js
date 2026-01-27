@@ -17,7 +17,7 @@ export class Monero implements Blockchain {
     helper: Helper;
 
     private unit = 'piconero/byte';
-    private piconero = 10 ** 12;
+    private piconero = 10n ** 12n;
 
     private wordList = [
         'abbey', 'abducts', 'ability', 'ablaze', 'abnormal', 'abort', 'abrasive', 'absorb', 'abyss', 'academy', 'aces', 'aching', 'acidic', 'acoustic',

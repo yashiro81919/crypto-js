@@ -2,33 +2,31 @@ import { Helper } from '../helper';
 import { BIP32Interface } from 'bip32';
 import { BitcoinBase } from './bitcoin-base';
 
-export class Litecoin extends BitcoinBase {
-    chain = 'Litecoin';
-    token = 'LTC';
-    purpose = '84';
-    coin = '2';
+export class DigiByte extends BitcoinBase {
+    chain = 'DigiByte';
+    token = 'DGB';
+    purpose = '44';
+    coin = '20';
     account = '0';
     change = '0';
-    color = '231';
+    color = '21';
 
-    unit = 'lit/vB';
+    unit = 'digibit/byte';
 
     constructor(helper: Helper) {
         super(helper);
     }
 
-    // Litecoin is Sigwit address
     getAddress(child: BIP32Interface): string {
-        return super.getSigwitAddress(child, 'ltc');
+        return super.getLegacyAddress(child, '1e');
     }
 
     getWIF(child: BIP32Interface): string {
-        // 0xB0 = 176 = Litecoin mainnet private key prefix
-        return super.getCommonWIF(child, 'b0');
+        return child.toWIF();
     }
 
     async getAddrDetail(address: string): Promise<any> {
-        const resp = await this.helper.api.get(`https://litecoinspace.org/api/address/${address}`);
+        const resp = await this.helper.api.get(`https://digiexplorer.info/api/address/${address}`);
         const balance = BigInt(resp.data['chain_stats']['funded_txo_sum']) - BigInt(resp.data['chain_stats']['spent_txo_sum']);
         const unBalance = BigInt(resp.data['mempool_stats']['funded_txo_sum']) - BigInt(resp.data['mempool_stats']['spent_txo_sum']);
         const isSpent = resp.data['chain_stats']['spent_txo_count'] > 0;
@@ -38,7 +36,7 @@ export class Litecoin extends BitcoinBase {
     }
 
     async getUtxos(address: string): Promise<any[]> {
-        const resp = await this.helper.api.get(`https://litecoinspace.org/api/address/${address}/utxo`);
+        const resp = await this.helper.api.get(`https://digiexplorer.info/api/address/${address}/utxo`);
         const utxos = [];
         resp.data.forEach(utxo => {
             utxos.push({ txid: utxo['txid'], vout: utxo['vout'], value: utxo['value'] });
@@ -48,15 +46,14 @@ export class Litecoin extends BitcoinBase {
     }
 
     async getFee(): Promise<number> {
-        const resp = await this.helper.api.get(`https://litecoinspace.org/api/v1/fees/recommended`);
-        return resp.data['fastestFee'];
+        return 100;
     }
 
     async sign(tx: any): Promise<void> {
-        super.signSigwit(tx);
+        super.signLegacy(tx);
     }
 
     isLegacyAddress(address: string): boolean {
-        return address.startsWith('L');
-    }
+        return address.startsWith('D');
+    }     
 }

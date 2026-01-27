@@ -19,6 +19,7 @@ import { Arbitrum } from './chain/arbitrum';
 import { Litecoin } from './chain/litecoin';
 import { Monero } from './chain/monero';
 import { Dash } from './chain/dash';
+import { DigiByte } from './chain/digi-byte';
 
 export class Helper {
 
@@ -36,6 +37,7 @@ export class Helper {
         this.chainRegistry.push(new Dogecoin(this));
         this.chainRegistry.push(new BitcoinCash(this));
         this.chainRegistry.push(new Dash(this));
+        this.chainRegistry.push(new DigiByte(this));
         this.chainRegistry.push(new Monero(this));
         this.chainRegistry.push(new Ethereum(this));
         this.chainRegistry.push(new EthereumClassic(this));
@@ -153,8 +155,8 @@ export class Helper {
         return stmt.all(accountName, 0);
     }
 
-    updateToken(accountName: string, i: string, contract: string, value: number, tokenName: string): void {
-        if (value === 0) {
+    updateToken(accountName: string, i: string, contract: string, value: string, tokenName: string): void {
+        if (Number(value) === 0) {
             const stmt = this.db.prepare('delete from t_token where name = ? and idx = ? and contract = ?');
             stmt.run(accountName, Number(i), contract);
         } else {
@@ -163,8 +165,8 @@ export class Helper {
         }
     }
 
-    updateDb(accountName: string, i: string, value: number): void {
-        if (value === 0) {
+    updateDb(accountName: string, i: string, value: string): void {
+        if (Number(value) === 0) {
             const stmt = this.db.prepare('delete from t_address where name = ? and idx = ?');
             stmt.run(accountName, Number(i));
         } else {
@@ -173,8 +175,8 @@ export class Helper {
         }
     }
 
-    validateAmount(value: string, remainAmt: number): boolean {
-        return this.isFloat(value) && Number(value) <= remainAmt;
+    validateAmount(value: string, remainAmt: string): boolean {
+        return this.isFloat(value) && this.decimalToBigInt(value, 18) <= this.decimalToBigInt(remainAmt, 18);
     }
 
     destroy(): void {
@@ -259,7 +261,7 @@ export class Helper {
         // first 4 bytes is the checksum
         const checksum = hash256.substring(0, 8);
         // calculate the bigint
-        const decimal = BigInt("0x" + hashHex + checksum);
+        const decimal = BigInt('0x' + hashHex + checksum);
         return base58.encode(this.bigintToUint8Array(decimal));
     }
 
@@ -270,12 +272,27 @@ export class Helper {
         return hex.slice(0, -8);
     }
 
-    // javascript may output 1.078872530222e+22 for big number, so need to convert it before send the tx
-    convertBigInt(val: number): string {
-        let str = val.toString();
-        if (str.includes('e+')) {
-            str = val.toLocaleString("fullwide", { useGrouping: false });
-        }
-        return str;
+    bigIntDivide(a: bigint, b: bigint): string {
+        const decimals = b.toString().length - 1;
+        return (
+            a / b +
+            '.' +
+            (a % b).toString().padStart(decimals, '0')
+        );
+    }
+
+    bigIntMultiply(decimalStr: string, a: bigint): bigint {
+        const [intPart, fracPart = ''] = decimalStr.split('.');
+        const scale = 10n ** BigInt(fracPart.length);
+
+        const decimalBigInt =
+            BigInt(intPart + fracPart);   // '0' + '21222' → 21222n
+
+        return (decimalBigInt * a) / scale;
+    }
+
+    decimalToBigInt(value: string, decimals: number): bigint {
+        const [i, d = ''] = value.split('.');
+        return BigInt(i + d.padEnd(decimals, '0'));
     }
 }
