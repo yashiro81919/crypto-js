@@ -221,7 +221,7 @@ export abstract class BitcoinBase implements Blockchain {
         for (const output of tx['outputs']) {
             const scriptPubkey = `76a914${this.getHash160Legacy(output['address'])}88ac`;; // scriptpubkey
             const keySize = this.helper.getCompactSize(scriptPubkey.length / 2); // scriptpubkeysize
-            const finalAmt = output['change'] ? output['amount'] - fee : output['amount']; // output with change flag will deduct network fee
+            const finalAmt = output['change'] ? BigInt(output['amount']) - BigInt(fee) : BigInt(output['amount']); // output with change flag will deduct network fee
             let amount = this.helper.hexToLE(finalAmt.toString(16).padStart(16, '0')); // amount
 
             raw += amount + keySize + scriptPubkey;
@@ -386,7 +386,7 @@ export abstract class BitcoinBase implements Blockchain {
         for (const output of tx['outputs']) {
             const scriptPubkey = `76a914${this.getHash160Legacy(output['address'])}88ac`;; // scriptpubkey
             const keySize = this.helper.getCompactSize(scriptPubkey.length / 2); // scriptpubkeysize
-            const finalAmt = output['change'] ? output['amount'] - fee : output['amount']; // output with change flag will deduct network fee
+            const finalAmt = output['change'] ? BigInt(output['amount']) - BigInt(fee) : BigInt(output['amount']); // output with change flag will deduct network fee
             let amount = this.helper.hexToLE(finalAmt.toString(16).padStart(16, '0')); // amount
 
             outData += amount + keySize + scriptPubkey;
