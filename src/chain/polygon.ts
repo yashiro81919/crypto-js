@@ -21,23 +21,22 @@ export class Polygon extends EthereumBase {
     ];
 
     async getAddrDetail(address: string): Promise<any> {
-        const resp = await this.helper.api.get(`https://sandbox-api.3xpl.com/polygon/address/${address}?data=balances&from=all&library=currencies`);
-        const balances = resp.data['data']['balances'];
-        const tokenMeta = resp.data['library']['currencies'];
-
-        const balance = BigInt(balances['polygon-main']['matic']['balance']);
+        const resp = await this.helper.api.get(`https://polygon.blockscout.com/api/v2/addresses/${address}`);
+        const balance = resp.data['coin_balance'] ? BigInt(resp.data['coin_balance']) : 0n;
         const tokens = [];
 
-        // fetch all ERC-20 tokens
-        const erc20Obj = balances['polygon-erc-20'];
-        for (const token in erc20Obj) {
-            const contract = token.replace('polygon-erc-20/', '').toLowerCase();
-            const erc20 = this.supportedTokens.find(e => e.contract === contract);
-            if (erc20) {
+        if (resp.data['has_tokens']) {
+            const respToken = await this.helper.api.get(`https://polygon.blockscout.com/api/v2/addresses/${address}/tokens?type=ERC-20`);
+            const supportedContract = this.supportedTokens.map(t => t.contract);
+            const validTokens = respToken.data['items'].filter(t => supportedContract.includes(t['token']['address_hash'].toLowerCase()));
+            for (const token of validTokens) {
+                const tokenMeta = token['token'];
+                const contract = tokenMeta['address_hash'].toLowerCase();
+                const erc20 = this.supportedTokens.find(e => e.contract === contract);
                 tokens.push({
-                    name: erc20.name, address: contract, value: BigInt(erc20Obj[token]['balance']), unit: 10n ** BigInt(tokenMeta[token]['decimals'])
+                    name: erc20.name, address: contract, value: BigInt(token['value']), unit: 10n ** BigInt(tokenMeta['decimals'])
                 });
-            }
+            }            
         }
 
         return { balance: balance, tokens: tokens };
