@@ -80,6 +80,7 @@ async function managePortfolio(): Promise<void> {
         coinMap.set('LTC', 'litecoin');
         coinMap.set('DASH', 'dash');
         coinMap.set('DOGE', 'dogecoin');
+        coinMap.set('DGB', 'digibyte');
         coinMap.set('ETH', 'ethereum');
         coinMap.set('ETC', 'ethereum-classic');
         coinMap.set('POL', 'matic');
