@@ -36,7 +36,7 @@ export abstract class EthereumBase implements Blockchain {
 
         let detail = `-----------m/${this.purpose}'/${this.coin}'/${this.account}'/${this.change}/${index}-------------------\n`;
 
-        detail += `Private Key: 0x${child.privateKey.toString('hex')}\n`;
+        detail += `Private Key: 0x${child.privateKey?.toString('hex')}\n`;
         detail += `Public Key: 0x${child.publicKey.toString('hex')}\n`;
         const fullPubKey = this.helper.decompressPublicKey(child.publicKey);
         detail += `Address: ${this.getEthereumAddress(fullPubKey)}\n`;
@@ -54,7 +54,7 @@ export abstract class EthereumBase implements Blockchain {
         this.helper.print(this.color, `|${index}|${address}|${this.helper.bigIntDivide(addr.balance, this.wei)}`);
 
         this.helper.print(this.color, `---------------------${this.chain} ERC20---------------------`);
-        addr.tokens.forEach(token => {
+        addr.tokens.forEach((token: { address: string; value: bigint; unit: bigint; name: string; }) => {
             this.helper.updateToken(accountName, index, token.address, this.helper.bigIntDivide(token.value, token.unit), token.name);
             this.helper.print(this.color, `|${token.name}|${token.address}|${this.helper.bigIntDivide(token.value, token.unit)}`);
         });
@@ -73,7 +73,7 @@ export abstract class EthereumBase implements Blockchain {
             const address = this.getEthereumAddress(fullPubKey);
 
             const addr = await this.getAddrDetail(address);
-            this.helper.print(this.color, `|${a.idx}|${address}|${this.helper.bigIntDivide(addr.balance, this.wei)}|${addr.tokens.map(t => t.name).join(',')}`);
+            this.helper.print(this.color, `|${a.idx}|${address}|${this.helper.bigIntDivide(addr.balance, this.wei)}|${addr.tokens.map((t: { name: any; }) => t.name).join(',')}`);
             total += addr.balance;
 
             this.helper.updateDb(accountName, a.idx, this.helper.bigIntDivide(addr.balance, this.wei));
@@ -112,11 +112,11 @@ export abstract class EthereumBase implements Blockchain {
             txUint = this.wei;
         } else {
             const token = await select({
-                message: 'Choose ERC20 token: ', choices: addrObj.tokens.map(t => {
+                message: 'Choose ERC20 token: ', choices: addrObj.tokens.map((t: { address: string; name: string; }) => {
                     return { value: t.address, name: t.name };
                 })
             });
-            tokenObj = addrObj.tokens.find(t => t.address === token);
+            tokenObj = addrObj.tokens.find((t: { address: string; }) => t.address === token);
             inBalance = tokenObj.value;
             txUint = tokenObj.unit;
         }
@@ -149,7 +149,7 @@ export abstract class EthereumBase implements Blockchain {
 
     async sign155(tx: any, chainId: bigint): Promise<void> {
         const gas = this.calcGas(tx);
-        const feeW = gas * tx['fee'];
+        const feeW = BigInt(gas) * BigInt(tx['fee']);
 
         console.log('----------------------------------');
         console.log(`calculated network fee: ${this.helper.bigIntDivide(BigInt(feeW), this.wei)} ${this.token}`);
@@ -163,15 +163,19 @@ export abstract class EthereumBase implements Blockchain {
         let txData: Uint8Array;
         if (tx['type'] === 0) {
             to = this.helper.strip0x(tx['output']);
-            const surplus = tx['amount'] + feeW - tx['balance'];
-            value = surplus > 0 ? tx['amount'] - surplus : tx['amount'];
+            const surplus = BigInt(tx['amount']) + feeW - BigInt(tx['balance']);
+            value = surplus > 0n ? BigInt(tx['amount']) - surplus : BigInt(tx['amount']);
             txData = new Uint8Array([]);
+        } else {
+            to = this.helper.strip0x(tx['token']);
+            value = 0n;
+            txData = Buffer.from(this.helper.strip0x(this.encodeERC20Transfer(tx['output'], BigInt(tx['amount']))), 'hex');
         }
 
         const commonTx = [
-            tx['nonce'],  // nonce
-            tx['fee'], // gasPrice
-            gas,  // gasLimit
+            BigInt(tx['nonce']),  // nonce
+            BigInt(tx['fee']), // gasPrice
+            BigInt(gas),  // gasLimit
             Buffer.from(to, 'hex'), // to address
             value,  // value
             txData  // data
@@ -226,7 +230,7 @@ export abstract class EthereumBase implements Blockchain {
         if (tx['type'] === 0) {
             to = this.helper.strip0x(tx['output']);
             const surplus = BigInt(tx['amount']) + feeW - BigInt(tx['balance']);
-            value = surplus > 0 ? BigInt(tx['amount']) - surplus : BigInt(tx['amount']);
+            value = surplus > 0n ? BigInt(tx['amount']) - surplus : BigInt(tx['amount']);
             txData = new Uint8Array([]);
         } else {
             to = this.helper.strip0x(tx['token']);
@@ -236,10 +240,10 @@ export abstract class EthereumBase implements Blockchain {
 
         const unsignedTx = [
             chainId, // chainId
-            tx['nonce'],  // nonce
-            tx['fee'], // maxPriorityFeePerGas
-            tx['fee'], // maxFeePerGas
-            gas,  // gasLimit
+            BigInt(tx['nonce']),  // nonce
+            BigInt(tx['fee']), // maxPriorityFeePerGas
+            BigInt(tx['fee']), // maxFeePerGas
+            BigInt(gas),  // gasLimit
             Buffer.from(to, 'hex'), // to address
             value,  // value
             txData,  // data

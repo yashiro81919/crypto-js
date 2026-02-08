@@ -34,7 +34,7 @@ export class Polygon extends EthereumBase {
                 const contract = tokenMeta['address_hash'].toLowerCase();
                 const erc20 = this.supportedTokens.find(e => e.contract === contract);
                 tokens.push({
-                    name: erc20.name, address: contract, value: BigInt(token['value']), unit: 10n ** BigInt(tokenMeta['decimals'])
+                    name: erc20?.name, address: contract, value: BigInt(token['value']), unit: 10n ** BigInt(tokenMeta['decimals'])
                 });
             }            
         }

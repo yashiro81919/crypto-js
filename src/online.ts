@@ -84,8 +84,8 @@ async function managePortfolio(): Promise<void> {
         coinMap.set('ETH', 'ethereum');
         coinMap.set('ETC', 'ethereum-classic');
         coinMap.set('POL', 'matic');
-        coinMap.set('OP', 'optimism-erc-20/0x4200000000000000000000000000000000000042');
-        coinMap.set('ARB', 'arbitrum-one-erc-20/0x912ce59144191c1204e64559fe8253a0e49e6548');
+        coinMap.set('XMR', 'monero');
+        coinMap.set('TRX', 'tron');
 
         const resp = await helper.api.get(`https://sandbox-api.3xpl.com/?library=blockchains,rates(usd)`);
         const rates = resp.data['library']['rates']['now'];

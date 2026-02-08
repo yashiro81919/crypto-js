@@ -14,36 +14,34 @@ import { Ethereum } from './chain/ethereum';
 import { EthereumClassic } from './chain/ethereum-classic';
 import { Dogecoin } from './chain/dogecoin';
 import { Polygon } from './chain/polygon';
-import { Optimism } from './chain/optimism';
-import { Arbitrum } from './chain/arbitrum';
 import { Litecoin } from './chain/litecoin';
 import { Monero } from './chain/monero';
 import { Dash } from './chain/dash';
 import { DigiByte } from './chain/digi-byte';
+import { Tron } from './chain/tron';
 
 export class Helper {
 
-    api: AxiosInstance;
+    api!: AxiosInstance;
     chainRegistry: Blockchain[] = [];
     DB_FILE = 'acc.db';
     TX_FILE = 'tx';
     SIG_TX_FILE = 'sigtx';
     COST_NAME = 'cost';
-    db: Database;
+    db!: Database;
 
     constructor() {
         this.chainRegistry.push(new Bitcoin(this));
+        this.chainRegistry.push(new Ethereum(this));
+        this.chainRegistry.push(new Polygon(this));
         this.chainRegistry.push(new Litecoin(this));
         this.chainRegistry.push(new Dogecoin(this));
         this.chainRegistry.push(new BitcoinCash(this));
+        this.chainRegistry.push(new EthereumClassic(this));
         this.chainRegistry.push(new Dash(this));
         this.chainRegistry.push(new DigiByte(this));
         this.chainRegistry.push(new Monero(this));
-        this.chainRegistry.push(new Ethereum(this));
-        this.chainRegistry.push(new EthereumClassic(this));
-        this.chainRegistry.push(new Polygon(this));
-        this.chainRegistry.push(new Optimism(this));
-        this.chainRegistry.push(new Arbitrum(this));
+        this.chainRegistry.push(new Tron(this));
     }
 
     async initResource(): Promise<void> {
@@ -213,7 +211,7 @@ export class Helper {
         } else if (i > 4294967295 && i <= 18446744073709551615n) {
             return `ff${this.hexToLE(i.toString(16).padStart(16, '0'))}`;
         }
-        return null;
+        return '';
     }
 
     // Convert big int value to uint8array

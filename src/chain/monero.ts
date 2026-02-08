@@ -141,7 +141,7 @@ export class Monero implements Blockchain {
 
         let detail = `-----------m/${this.purpose}'/${this.coin}'/${this.account}'/${this.change}/${index}-------------------\n`;
 
-        const bip39Pk = child.privateKey.toString('hex');
+        const bip39Pk = child.privateKey!.toString('hex');
         const privateSpendKey = this.scReduce32(bip39Pk);
         const privateViewKey = this.pskToPvk(privateSpendKey);
         const publicSpendKey = this.getPublicKey(privateSpendKey);

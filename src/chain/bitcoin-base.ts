@@ -36,7 +36,7 @@ export abstract class BitcoinBase implements Blockchain {
 
         let detail = `-----------m/${this.purpose}'/${this.coin}'/${this.account}'/${this.change}/${index}-------------------\n`;
 
-        detail += `Private Key: ${child.privateKey.toString('hex')}\n`;
+        detail += `Private Key: ${child.privateKey?.toString('hex')}\n`;
         detail += `Public Key: ${child.publicKey.toString('hex')}\n`;
         detail += `Address: ${this.getAddress(child)}\n`;
         detail += `WIF: ${this.getWIF(child)}\n`;
