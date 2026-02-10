@@ -39,8 +39,8 @@ export class Litecoin extends BitcoinBase {
 
     async getUtxos(address: string): Promise<any[]> {
         const resp = await this.helper.api.get(`https://litecoinspace.org/api/address/${address}/utxo`);
-        const utxos = [];
-        resp.data.forEach(utxo => {
+        const utxos : any[] = [];
+        resp.data.forEach((utxo: any) => {
             utxos.push({ txid: utxo['txid'], vout: utxo['vout'], value: utxo['value'] });
         });
 

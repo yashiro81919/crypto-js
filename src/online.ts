@@ -3,6 +3,7 @@ import { BIP32Factory, BIP32Interface } from 'bip32';
 import * as ecc from '@bitcoinerlab/secp256k1';
 import { Helper } from './helper';
 import { Blockchain } from './chain/blockchain';
+import * as pkg from '../package.json';
 
 // this script should be deployed on online device for monitoring your accounts
 // accounts are saved in table t_account
@@ -99,7 +100,7 @@ async function managePortfolio(): Promise<void> {
             const blockchain = helper.getBlockchain(row['coin_type']);
             const balance = row['balance'];
             const accName = row['name'];
-            const price = rates[coinMap.get(blockchain.token)]['usd'];
+            const price = rates[coinMap.get(blockchain.token)!]['usd'];
             const amount = (balance * price).toFixed(2);
             total += Number(amount);
             helper.print(blockchain.color, `|${blockchain.chain}|${accName}|${blockchain.token}|${balance}|${price}|${amount}`);
@@ -151,7 +152,7 @@ async function manageAccount(): Promise<void> {
     } else if (step === 1) {
         const rows = helper.getAllAccounts();
         accountName = await select({
-            message: 'Choose account to remove: ', choices: rows.map(a => {
+            message: 'Choose account to remove: ', choices: rows.map((a: { name: string }) => {
                 return { value: a.name, name: a.name };
             })
         });
@@ -164,6 +165,10 @@ async function manageAccount(): Promise<void> {
 }
 
 async function main(): Promise<void> {
+    console.log("----------------------------------");
+    console.log(`Version: [${pkg.version}]`);
+    console.log("----------------------------------");
+
     helper = new Helper();
     await helper.initResource();
 

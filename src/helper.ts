@@ -95,12 +95,12 @@ export class Helper {
     }
 
     getBlockchain(coinType: string): Blockchain {
-        return this.chainRegistry.find(c => c.coin === coinType);
+        return this.chainRegistry.find(c => c.coin === coinType)!;
     }
 
     getAllAccounts(): any {
         const stmt = this.db.prepare('select * from t_account');
-        const accounts = stmt.all();
+        const accounts = stmt.all() as { pub_key: string, name: string }[];
         for (const acc of accounts) {
             acc['pub_key'] = aes256gcmDecode(Buffer.from(acc['pub_key'], 'hex'), acc['name']).toString('utf8');
         }
@@ -130,7 +130,7 @@ export class Helper {
 
     getCost(): number {
         const stmt = this.db.prepare('select balance from t_address where name = ?');
-        const obj = stmt.get(this.COST_NAME);
+        const obj = stmt.get(this.COST_NAME) as { balance: number };
         let cost: number;
         if (!obj) {
             const stmtInsert = this.db.prepare('insert into t_address (name, idx, balance) values (?, ?, ?)');

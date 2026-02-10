@@ -29,11 +29,11 @@ export class Ethereum extends EthereumBase {
         if (resp.data['has_tokens']) {
             const respToken = await this.helper.api.get(`https://eth.blockscout.com/api/v2/addresses/${address}/tokens?type=ERC-20`);
             const supportedContract = this.supportedTokens.map(t => t.contract);
-            const validTokens = respToken.data['items'].filter(t => supportedContract.includes(t['token']['address_hash'].toLowerCase()));
+            const validTokens = respToken.data['items'].filter((t: any) => supportedContract.includes(t['token']['address_hash'].toLowerCase()));
             for (const token of validTokens) {
                 const tokenMeta = token['token'];
                 const contract = tokenMeta['address_hash'].toLowerCase();
-                const erc20 = this.supportedTokens.find(e => e.contract === contract);
+                const erc20 = this.supportedTokens.find(e => e.contract === contract)!;
                 tokens.push({
                     name: erc20.name, address: contract, value: BigInt(token['value']), unit: 10n ** BigInt(tokenMeta['decimals'])
                 });
@@ -44,7 +44,10 @@ export class Ethereum extends EthereumBase {
     }
 
     async getNonce(address: string): Promise<number> {
-        const resp = await this.helper.api.post(`https://ethereum.therpc.io`, {jsonrpc: '2.0', method: 'eth_getTransactionCount', params: [address,'latest'], id: '1'});
+        const resp = await this.helper.api.post(`https://ethereum.publicnode.com`, {jsonrpc: '2.0', method: 'eth_getTransactionCount', params: [address,'latest'], id: '1'});
+        if (resp.status !== 200) {
+            throw Error('Cannot get Nonce');
+        } 
         const nonce = resp.data['result'] ? resp.data['result'] : '0';
         return Number(nonce);
     }

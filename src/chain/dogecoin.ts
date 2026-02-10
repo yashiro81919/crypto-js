@@ -38,9 +38,9 @@ export class Dogecoin extends BitcoinBase {
 
     async getUtxos(address: string): Promise<any[]> {
         const resp = await this.helper.api.get(`https://api.blockcypher.com/v1/doge/main/addrs/${address}?unspentOnly=1&limit=100`);
-        const utxos = [];
+        const utxos : any[] = [];
         if (resp.data['txrefs']) {
-            resp.data['txrefs'].forEach(utxo => {
+            resp.data['txrefs'].forEach((utxo: any) => {
                 utxos.push({ txid: utxo['tx_hash'], vout: utxo['tx_output_n'], value: utxo['value'] });
             });
         }

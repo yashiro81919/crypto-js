@@ -148,7 +148,7 @@ export abstract class BitcoinBase implements Blockchain {
 
         const status = await confirm({ message: 'Continue to create transaction: ' });
         if (status) {
-            const tx = { coin: this.coin, fee: feeVb, inputs: [], outputs: [] };
+            const tx = { coin: this.coin, fee: feeVb, inputs: [] as any[], outputs: [] as any[] };
 
             // create input from utxos
             for (const addr of inputAddrs) {
@@ -232,7 +232,7 @@ export abstract class BitcoinBase implements Blockchain {
         // calculate and update signature part of tx
         const preimage = raw; // clone the current raw string
         for (const input of tx['inputs']) {
-            const privateKey = keyMap.get(input['address']);
+            const privateKey = keyMap.get(input['address'])!;
 
             const rawSignature = secp256k1.sign(this.getPreimageLagacy(preimage, input), privateKey, { lowS: true });
             const signature = `${rawSignature.toDERHex()}01`; // DER Sign + SIGHASH_ALL (0x01)
@@ -314,7 +314,7 @@ export abstract class BitcoinBase implements Blockchain {
 
         // witness part
         for (const input of tx['inputs']) {
-            const privateKey = keyMap.get(input['address']);
+            const privateKey = keyMap.get(input['address'])!;
 
             raw += '02'; // stackitems
             const rawSignature = secp256k1.sign(this.getPreimage(version, inData, outData, seqs, sequence, locktime, input), privateKey, { lowS: true });
@@ -397,7 +397,7 @@ export abstract class BitcoinBase implements Blockchain {
 
         // calculate and update signature part of tx
         for (const input of tx['inputs']) {
-            const privateKey = keyMap.get(input['address']);
+            const privateKey = keyMap.get(input['address'])!;
 
             const rawSignature = secp256k1.sign(this.getPreimageCash(version, inData, outData, seqs, sequence, locktime, input), privateKey, { lowS: true });
             const signature = `${rawSignature.toDERHex()}41`; // DER Sign + SIGHASH_FORKID (0x41)
@@ -433,10 +433,10 @@ export abstract class BitcoinBase implements Blockchain {
     }
 
     getCommonWIF(child: BIP32Interface, prefix: string): string {
-        if (child.privateKey.length !== 32) {
+        if (child.privateKey!.length !== 32) {
             throw new Error('Private key must be 32 bytes (64 hex characters)');
         }
-        const privKeyHex = `${child.privateKey.toString('hex')}01`;
+        const privKeyHex = `${child.privateKey!.toString('hex')}01`;
         return this.helper.bs58Enc(prefix + privKeyHex);
     }
     
@@ -482,7 +482,7 @@ export abstract class BitcoinBase implements Blockchain {
         return hash160;
     }
 
-    private getPreimageLagacy(preimage: string, input: any[]): Buffer<ArrayBuffer> {
+    private getPreimageLagacy(preimage: string, input: any): Buffer<ArrayBuffer> {
         const scriptSig = `76a914${this.getHash160Legacy(input['address'])}88ac`;
         const scriptSigSize = this.helper.getCompactSize(scriptSig.length / 2);
 
@@ -499,7 +499,7 @@ export abstract class BitcoinBase implements Blockchain {
     }    
     
     private getPreimage(version: string, inData: string, outData: string,
-        seqs: string, sequence: string, locktime: string, input: any[]): Buffer<ArrayBuffer> {
+        seqs: string, sequence: string, locktime: string, input: any): Buffer<ArrayBuffer> {
         let preimage = '';
         // Grab the version field
         preimage += version;
@@ -529,7 +529,7 @@ export abstract class BitcoinBase implements Blockchain {
     }
 
     private getPreimageCash(version: string, inData: string, outData: string,
-        seqs: string, sequence: string, locktime: string, input: any[]): Buffer<ArrayBuffer> {
+        seqs: string, sequence: string, locktime: string, input: any): Buffer<ArrayBuffer> {
         let preimage = '';
         // Grab the version field
         preimage += version;

@@ -261,7 +261,7 @@ export class Monero implements Blockchain {
             throw new Error("Hex string length must be a multiple of 8 characters (32-bit aligned)");
         }
 
-        const bytes = hexStr.match(/.{8}/g); // Each group is 4 bytes (8 hex chars)
+        const bytes = hexStr.match(/.{8}/g)!; // Each group is 4 bytes (8 hex chars)
         const words: string[] = [];
 
         for (const hex of bytes) {

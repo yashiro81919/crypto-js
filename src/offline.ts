@@ -6,6 +6,7 @@ import * as bip39 from 'bip39';
 import { BIP32Factory, BIP32Interface } from 'bip32';
 import * as ecc from '@bitcoinerlab/secp256k1';
 import { Blockchain } from './chain/blockchain';
+import * as pkg from '../package.json';
 
 const bip32 = BIP32Factory(ecc);
 const seedFilePath = 'seed';
@@ -90,6 +91,10 @@ async function sign(): Promise<void> {
 }
 
 async function main(): Promise<void> {
+    console.log("----------------------------------");
+    console.log(`Version: [${pkg.version}]`);
+    console.log("----------------------------------");
+
     helper = new Helper();
 
     const step = await select({

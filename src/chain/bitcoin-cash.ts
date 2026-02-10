@@ -36,8 +36,8 @@ export class BitcoinCash extends BitcoinBase {
 
     async getUtxos(address: string): Promise<any[]> {
         const resp = await this.helper.api.get(`https://api.fullstack.cash/v5/electrumx/utxos/${address}`);
-        const utxos = [];
-        resp.data['utxos'].forEach(utxo => {
+        const utxos : any[] = [];
+        resp.data['utxos'].forEach((utxo: any) => {
             utxos.push({ txid: utxo['tx_hash'], vout: utxo['tx_pos'], value: utxo['value'] });
         });
 
