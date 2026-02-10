@@ -6,7 +6,12 @@ import * as bip39 from 'bip39';
 import { BIP32Factory, BIP32Interface } from 'bip32';
 import * as ecc from '@bitcoinerlab/secp256k1';
 import { Blockchain } from './chain/blockchain';
-import * as pkg from '../package.json';
+import { readFileSync } from "fs";
+import { resolve } from "path";
+
+const pkg = JSON.parse(
+  readFileSync(resolve(process.cwd(), "package.json"), "utf8")
+);
 
 const bip32 = BIP32Factory(ecc);
 const seedFilePath = 'seed';

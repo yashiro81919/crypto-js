@@ -3,7 +3,12 @@ import { BIP32Factory, BIP32Interface } from 'bip32';
 import * as ecc from '@bitcoinerlab/secp256k1';
 import { Helper } from './helper';
 import { Blockchain } from './chain/blockchain';
-import * as pkg from '../package.json';
+import { readFileSync } from "fs";
+import { resolve } from "path";
+
+const pkg = JSON.parse(
+  readFileSync(resolve(process.cwd(), "package.json"), "utf8")
+);
 
 // this script should be deployed on online device for monitoring your accounts
 // accounts are saved in table t_account
