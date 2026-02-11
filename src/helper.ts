@@ -158,8 +158,10 @@ export class Helper {
         let stmt = this.db.prepare('delete from t_token where name = ? and idx = ?');
         stmt.run(accountName, Number(i));
 
-        stmt = this.db.prepare('insert into t_token (name, idx, contract, balance, symbol) VALUES (?, ?, ?, ?, ?) ON CONFLICT(name, idx, contract) DO UPDATE SET balance = excluded.balance');
-        stmt.run(accountName, Number(i), contract, value, tokenName);
+        if (Number(value) > 0) {
+            stmt = this.db.prepare('insert into t_token (name, idx, contract, balance, symbol) VALUES (?, ?, ?, ?, ?) ON CONFLICT(name, idx, contract) DO UPDATE SET balance = excluded.balance');
+            stmt.run(accountName, Number(i), contract, value, tokenName);
+        }
     }
 
     updateDb(accountName: string, i: string, value: string): void {
@@ -295,5 +297,52 @@ export class Helper {
 
     sleep(ms: number): Promise<void> {
         return new Promise(resolve => setTimeout(resolve, ms));
-    }    
+    }
+
+    async getTotalBalance(): Promise<void> {
+        // primitive coin price
+        const coinMap = new Map<string, string>();
+        coinMap.set('BTC', 'bitcoin');
+        coinMap.set('BCH', 'bitcoin-cash');
+        coinMap.set('LTC', 'litecoin');
+        coinMap.set('DASH', 'dash');
+        coinMap.set('DOGE', 'dogecoin');
+        coinMap.set('DGB', 'digibyte');
+        coinMap.set('ETH', 'ethereum');
+        coinMap.set('ETC', 'ethereum-classic');
+        coinMap.set('POL', 'matic');
+        coinMap.set('XMR', 'monero');
+        coinMap.set('TRX', 'tron');
+
+        const resp = await this.api.get(`https://sandbox-api.3xpl.com/?library=blockchains,rates(usd)`);
+        const rates = resp.data['library']['rates']['now'];
+
+        let total = 0;
+
+        const rows = this.aggAllAccounts();
+        const tokens = this.aggAllTokens();
+        console.log(`-----------Total Assets-------------------`);
+        rows.forEach(row => {
+            const blockchain = this.getBlockchain(row['coin_type']);
+            const balance = row['balance'];
+            const accName = row['name'];
+            const price = rates[coinMap.get(blockchain.token)!]['usd'];
+            const amount = (balance * price).toFixed(2);
+            total += Number(amount);
+            this.print(blockchain.color, `|${blockchain.chain}|${accName}|${blockchain.token}|${balance}|${price}|${amount}`);
+            tokens.filter(t => t['name'] === accName).forEach(t => {
+                const coinStr = coinMap.get(t['symbol']);
+                // support BTC, others are stable coin, so always 1
+                const tokenPrice = coinStr ? rates[coinStr]['usd'] : 1;
+                const tokenAmount = (t['balance'] * tokenPrice).toFixed(2);
+                total += Number(tokenAmount);
+                this.print(blockchain.color, `|${blockchain.chain}|${accName}|${t['symbol']}|${t['balance']}|${tokenPrice}|${tokenAmount}`);
+            });
+        });
+        console.log(`------------------------------------------`);
+        this.print('255', `Total Balance: ${total.toFixed(2)}`);
+        const cost = this.getCost();
+        this.print('255', `Total Cost: ${cost.toFixed(2)}`);
+        this.print('255', `Total Profit: ${(total - cost).toFixed(2)}`);        
+    }
 }

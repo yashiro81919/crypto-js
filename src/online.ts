@@ -80,49 +80,7 @@ async function managePortfolio(): Promise<void> {
     });
 
     if (step === 0) {
-        const coinMap = new Map<string, string>();
-        coinMap.set('BTC', 'bitcoin');
-        coinMap.set('BCH', 'bitcoin-cash');
-        coinMap.set('LTC', 'litecoin');
-        coinMap.set('DASH', 'dash');
-        coinMap.set('DOGE', 'dogecoin');
-        coinMap.set('DGB', 'digibyte');
-        coinMap.set('ETH', 'ethereum');
-        coinMap.set('ETC', 'ethereum-classic');
-        coinMap.set('POL', 'matic');
-        coinMap.set('XMR', 'monero');
-        coinMap.set('TRX', 'tron');
-
-        const resp = await helper.api.get(`https://sandbox-api.3xpl.com/?library=blockchains,rates(usd)`);
-        const rates = resp.data['library']['rates']['now'];
-
-        let total = 0;
-
-        const rows = helper.aggAllAccounts();
-        const tokens = helper.aggAllTokens();
-        console.log(`-----------Total Assets-------------------`);
-        rows.forEach(row => {
-            const blockchain = helper.getBlockchain(row['coin_type']);
-            const balance = row['balance'];
-            const accName = row['name'];
-            const price = rates[coinMap.get(blockchain.token)!]['usd'];
-            const amount = (balance * price).toFixed(2);
-            total += Number(amount);
-            helper.print(blockchain.color, `|${blockchain.chain}|${accName}|${blockchain.token}|${balance}|${price}|${amount}`);
-            tokens.filter(t => t['name'] === accName).forEach(t => {
-                const coinStr = coinMap.get(t['symbol']);
-                // support OP and ARB, others are stable coin, so always 1
-                const tokenPrice = coinStr ? rates[coinStr]['usd'] : 1;
-                const tokenAmount = (t['balance'] * tokenPrice).toFixed(2);
-                total += Number(tokenAmount);
-                helper.print(blockchain.color, `|${blockchain.chain}|${accName}|${t['symbol']}|${t['balance']}|${tokenPrice}|${tokenAmount}`);
-            });
-        });
-        console.log(`------------------------------------------`);
-        helper.print('255', `Total Balance: ${total.toFixed(2)}`);
-        const cost = helper.getCost();
-        helper.print('255', `Total Cost: ${cost.toFixed(2)}`);
-        helper.print('255', `Total Profit: ${(total - cost).toFixed(2)}`);
+        await helper.getTotalBalance();
     } else if (step === 1) {
         const cost = helper.getCost();
 

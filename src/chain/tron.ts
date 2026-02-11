@@ -16,7 +16,8 @@ export class Tron implements Blockchain {
     private unit = 'suns/gas';
     private suns = 10n ** 6n;
     private supportedTokens = [
-        { name: 'USDT', contract: 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t', decimals: 10n ** 6n }
+        { name: 'USDT', contract: 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t', decimals: 10n ** 6n },
+        { name: 'BTC', contract: 'TN3W4H6rK2ce4vX9YnFQHwKENnHjoxb3m9', decimals: 10n ** 8n }
     ];
 
     constructor(helper: Helper) {
@@ -97,6 +98,15 @@ export class Tron implements Blockchain {
         const balance = data && data['balance'] ? BigInt(data['balance']) : 0n;
         const trc20: any[] = data && data['trc20'] ? data['trc20'] : [];
 
+        // frozenV2 balance
+        const frozen = data && data['frozenV2'] ? data['frozenV2'] : [];
+        let frozenBalance = 0n;
+        for (const obj of frozen) {
+            if (obj['amount']) {
+                frozenBalance += BigInt(obj['amount']);
+            }
+        }
+
         // TRC20 tokens
         const tokens = [];
         for (const token of this.supportedTokens) {
@@ -111,6 +121,6 @@ export class Tron implements Blockchain {
             }
             tokens.push({ name: token.name, address: token.contract, value: BigInt(value), unit: token.decimals });
         }
-        return { balance: balance, tokens: tokens };
+        return { balance: balance + frozenBalance, tokens: tokens };
     }
 }
