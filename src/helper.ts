@@ -155,8 +155,8 @@ export class Helper {
 
     updateToken(accountName: string, i: string, contract: string, value: string, tokenName: string): void {
         // remove all current tokens
-        let stmt = this.db.prepare('delete from t_token where name = ? and idx = ?');
-        stmt.run(accountName, Number(i));
+        let stmt = this.db.prepare('delete from t_token where name = ? and idx = ? and contract = ?');
+        stmt.run(accountName, Number(i), contract);
 
         if (Number(value) > 0) {
             stmt = this.db.prepare('insert into t_token (name, idx, contract, balance, symbol) VALUES (?, ?, ?, ?, ?) ON CONFLICT(name, idx, contract) DO UPDATE SET balance = excluded.balance');
