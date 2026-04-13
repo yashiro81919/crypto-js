@@ -27,25 +27,28 @@ export class BitcoinCash extends BitcoinBase {
     }
 
     async getAddrDetail(address: string): Promise<any> {
-        const resp = await this.helper.api.get(`https://api.fullstack.cash/v5/electrumx/balance/${address}`);
-        const balance =  BigInt(resp.data['balance']['confirmed']);
-        const unBalance =  BigInt(resp.data['balance']['unconfirmed']);
+        const resp = await this.helper.api.get(`https://bchexplorer.cash/api/address/${address}`);
+        const balance = BigInt(resp.data['chain_stats']['funded_txo_sum']) - BigInt(resp.data['chain_stats']['spent_txo_sum']);
+        const unBalance = BigInt(resp.data['mempool_stats']['funded_txo_sum']) - BigInt(resp.data['mempool_stats']['spent_txo_sum']);
+        const isSpent = resp.data['chain_stats']['spent_txo_count'] > 0;
+        const spentFlag = isSpent ? "✘" : "✔";
 
-        return { balance: balance, unBalance: unBalance, spentFlag: "✔" };
+        return { balance: balance, unBalance: unBalance, spentFlag: spentFlag };
     }
 
     async getUtxos(address: string): Promise<any[]> {
-        const resp = await this.helper.api.get(`https://api.fullstack.cash/v5/electrumx/utxos/${address}`);
+        const resp = await this.helper.api.get(`https://bchexplorer.cash/api/address/${address}/utxo`);
         const utxos : any[] = [];
-        resp.data['utxos'].forEach((utxo: any) => {
-            utxos.push({ txid: utxo['tx_hash'], vout: utxo['tx_pos'], value: utxo['value'] });
+        resp.data.forEach((utxo: any) => {
+            utxos.push({ txid: utxo['txid'], vout: utxo['vout'], value: utxo['value'] });
         });
 
         return utxos;
     }
 
     async getFee(): Promise<number> {
-        return 1;
+        const resp = await this.helper.api.get(`https://bchexplorer.cash/api/v1/fees/recommended`);
+        return resp.data['fastestFee'];
     }
 
     async sign(tx: any): Promise<void> {
