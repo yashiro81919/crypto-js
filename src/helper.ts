@@ -318,6 +318,7 @@ export class Helper {
         const rates = resp.data['library']['rates']['now'];
 
         let total = 0;
+        let btcPrice = rates[coinMap.get('BTC')!]['usd'];
 
         const rows = this.aggAllAccounts();
         const tokens = this.aggAllTokens();
@@ -340,7 +341,8 @@ export class Helper {
             });
         });
         console.log(`------------------------------------------`);
-        this.print('255', `Total Balance: ${total.toFixed(2)}`);
+        this.print('255', `Total Balance (BTC): ${(total/btcPrice).toFixed(8)}`);
+        this.print('255', `Total Balance (USD): ${total.toFixed(2)}`);
         const cost = this.getCost();
         this.print('255', `Total Cost: ${cost.toFixed(2)}`);
         this.print('255', `Total Profit: ${(total - cost).toFixed(2)}`);        

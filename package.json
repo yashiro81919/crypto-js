@@ -1,6 +1,6 @@
 {
     "name": "crypto-js",
-    "version": "1.5",
+    "version": "1.6",
     "description": "an easy crypto wallet built with Typescript/Javascript for learning purpose",
     "keywords": [
         "crypto"

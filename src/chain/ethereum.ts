@@ -17,8 +17,7 @@ export class Ethereum extends EthereumBase {
     supportedTokens = [
         {name: 'USDT', contract: '0xdac17f958d2ee523a2206206994597c13d831ec7'},
         {name: 'USDC', contract: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'},
-        {name: 'USDS', contract: '0xdc035d45d973e3ec169d2276ddab16f1e407384f'},
-        {name: 'DAI', contract: '0x6b175474e89094c44da98b954eedeac495271d0f'}
+        {name: 'USDS', contract: '0xdc035d45d973e3ec169d2276ddab16f1e407384f'}
     ];
 
     async getAddrDetail(address: string): Promise<any> {
