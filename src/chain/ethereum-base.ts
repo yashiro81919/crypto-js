@@ -19,16 +19,14 @@ export abstract class EthereumBase implements Blockchain {
 
     private unit = 'gwei/gas';
     private wei = 10n ** 18n;
-    private gWei = 10 ** 9;
+    private gWei = 10n ** 9n;
 
     constructor(helper: Helper) {
         this.helper = helper;
     }
 
     abstract supportedTokens: any[];
-    abstract getAddrDetail(address: string): Promise<any>;
-    abstract getNonce(address: string): Promise<number>;
-    abstract getFee(): Promise<number>;
+    abstract rpcURL: string;
     abstract sign(tx: any): void;    
 
     showKeyInfo(root: BIP32Interface, index: string): void {
@@ -84,12 +82,11 @@ export abstract class EthereumBase implements Blockchain {
 
     async createTx(): Promise<void> {
         // calculate network fees
-        let feeGw = await this.getFee();
-        let feeW = feeGw * this.gWei;
+        let feeW = await this.getFee();
+        let feeGw = this.helper.bigIntDivide(feeW, this.gWei);
 
-        const newFee = await input({ message: `Type new fee if you want to change (${this.unit}): `, default: feeGw.toString(), validate: this.helper.isFloat });
-        feeGw = Number(newFee);
-        feeW = feeGw * this.gWei;
+        feeGw = await input({ message: `Type new fee if you want to change (${this.unit}): `, default: feeGw, validate: this.helper.isFloat });
+        feeW = this.helper.bigIntMultiply(feeGw, this.gWei);
 
         // add input address
         const inputAddr = await input({ message: 'Type input address: ', required: true });
@@ -142,7 +139,7 @@ export abstract class EthereumBase implements Blockchain {
 
         const status = await confirm({ message: 'Continue to create transaction: ' });
         if (status) {
-            const tx = { coin: this.coin, fee: feeW, nonce: nonce, type: type, token: tokenObj.address, input: inputAddr, output: outputAddr, balance: inBalance.toString(), amount: outBalance.toString() };
+            const tx = { coin: this.coin, fee: feeW.toString(), nonce: nonce, type: type, token: tokenObj.address, input: inputAddr, output: outputAddr, balance: inBalance.toString(), amount: outBalance.toString() };
             fs.writeFile(this.helper.TX_FILE, JSON.stringify(tx), 'utf8');
         }
     }
@@ -273,7 +270,56 @@ export abstract class EthereumBase implements Blockchain {
 
         fs.writeFile(this.helper.SIG_TX_FILE, raw, 'utf8');
         console.log(raw);
-    }    
+    }
+
+    async getNonce(address: string): Promise<number> {
+        const result = await this.callRPC('eth_getTransactionCount', [address, 'latest']);
+        const nonce = result ? result : '0';
+        return Number(nonce);
+    }
+    
+    async getFee(): Promise<bigint> {
+        const result = await this.callRPC('eth_gasPrice', []);
+        return BigInt(result);
+    }
+
+    async getAddrDetail(address: string): Promise<any> {
+        let resp = await this.callRPC('eth_getBalance', [address, 'latest']);
+        const balance = BigInt(resp);
+
+        const tokens = [];
+
+        for (const token of this.supportedTokens) {
+            const balanceOf = await this.callRPC('eth_call', [{
+                to: token.contract,
+                data: '0x70a08231' + this.helper.strip0x(address).padStart(64, '0')
+            }, 'latest']);
+
+            const value = BigInt(balanceOf);
+            if (value === 0n) {
+                continue;
+            }
+
+            const decimals = await this.callRPC('eth_call', [{
+                to: token.contract,
+                data: '0x313ce567' + this.helper.strip0x(address).padStart(64, '0')
+            }, 'latest']);            
+
+            tokens.push({
+                name: token.name, address: token.contract, value: value, unit: 10n ** BigInt(decimals)
+            });            
+        }
+
+        return { balance: balance, tokens: tokens };
+    }
+
+    private async callRPC(method: string, params: any[]): Promise<string> {
+        const resp = await this.helper.api.post(this.rpcURL, {jsonrpc: '2.0', method: method, params: params, id: 1});
+        if (resp.status !== 200) {
+            throw Error('Call RPC error!');
+        }
+        return resp.data['result'];
+    }
     
     private getEthereumAddress(publicKey: Uint8Array): string {
         // Assume `publicKey` is a Uint8Array of 64 bytes (no 0x04 prefix)

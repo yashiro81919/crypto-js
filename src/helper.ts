@@ -19,6 +19,7 @@ import { Monero } from './chain/monero';
 import { Dash } from './chain/dash';
 import { DigiByte } from './chain/digi-byte';
 import { Tron } from './chain/tron';
+import { HyperEvm } from './chain/hyper-evm';
 
 export class Helper {
 
@@ -33,6 +34,7 @@ export class Helper {
     constructor() {
         this.chainRegistry.push(new Bitcoin(this));
         this.chainRegistry.push(new Ethereum(this));
+        this.chainRegistry.push(new HyperEvm(this));
         this.chainRegistry.push(new Polygon(this));
         this.chainRegistry.push(new Litecoin(this));
         this.chainRegistry.push(new Dogecoin(this));

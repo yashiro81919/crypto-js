@@ -19,41 +19,7 @@ export class Polygon extends EthereumBase {
         {name: 'USDC', contract: '0x3c499c542cef5e3811e1192ce70d8cc03d5c3359'}
     ];
 
-    async getAddrDetail(address: string): Promise<any> {
-        const resp = await this.helper.api.get(`https://polygon.blockscout.com/api/v2/addresses/${address}`);
-        const balance = resp.data['coin_balance'] ? BigInt(resp.data['coin_balance']) : 0n;
-        const tokens = [];
-
-        if (resp.data['has_tokens']) {
-            const respToken = await this.helper.api.get(`https://polygon.blockscout.com/api/v2/addresses/${address}/tokens?type=ERC-20`);
-            const supportedContract = this.supportedTokens.map(t => t.contract);
-            const validTokens = respToken.data['items'].filter((t: any) => supportedContract.includes(t['token']['address_hash'].toLowerCase()));
-            for (const token of validTokens) {
-                const tokenMeta = token['token'];
-                const contract = tokenMeta['address_hash'].toLowerCase();
-                const erc20 = this.supportedTokens.find(e => e.contract === contract)!;
-                tokens.push({
-                    name: erc20.name, address: contract, value: BigInt(token['value']), unit: 10n ** BigInt(tokenMeta['decimals'])
-                });
-            }            
-        }
-
-        return { balance: balance, tokens: tokens };
-    }
-
-    async getNonce(address: string): Promise<number> {
-        const resp = await this.helper.api.post(`https://polygon-bor-rpc.publicnode.com`, {jsonrpc: '2.0', method: 'eth_getTransactionCount', params: [address,'latest'], id: '1'});
-        if (resp.status !== 200) {
-            throw Error('Cannot get Nonce');
-        }         
-        const nonce = resp.data['result'] ? resp.data['result'] : '0';
-        return Number(nonce);
-    }
-
-    async getFee(): Promise<number> {
-        const resp = await this.helper.api.get(`https://polygon.blockscout.com/api/v2/stats`);
-        return resp.data['gas_prices']['average'];
-    }
+    rpcURL = 'https://polygon-bor-rpc.publicnode.com';
 
     async sign(tx: any): Promise<void> {
         super.sign1559(tx, 137n);
