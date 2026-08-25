@@ -306,21 +306,28 @@ export class Helper {
         const coinMap = new Map<string, string>();
         coinMap.set('BTC', 'bitcoin');
         coinMap.set('BCH', 'bitcoin-cash');
+        coinMap.set('BSV', 'bitcoin-cash-sv');
         coinMap.set('LTC', 'litecoin');
         coinMap.set('DASH', 'dash');
         coinMap.set('DOGE', 'dogecoin');
         coinMap.set('DGB', 'digibyte');
         coinMap.set('ETH', 'ethereum');
         coinMap.set('ETC', 'ethereum-classic');
-        coinMap.set('POL', 'matic');
+        coinMap.set('POL', 'polygon-ecosystem-token');
         coinMap.set('XMR', 'monero');
         coinMap.set('TRX', 'tron');
+        coinMap.set('HYPE', 'hyperliquid');
+        coinMap.set('USDT', 'tether');
+        coinMap.set('USDC', 'usd-coin');
+        coinMap.set('USDS', 'usds');
 
-        const resp = await this.api.get(`https://sandbox-api.3xpl.com/?library=blockchains,rates(usd)`);
-        const rates = resp.data['library']['rates']['now'];
+        const coinIds = [...coinMap.values()];
+
+        const resp = await this.api.get(`https://api.coingecko.com/api/v3/simple/price?ids=${coinIds.join(',')}&vs_currencies=usd`);
+        const rates = resp.data;
 
         let total = 0;
-        let btcPrice = rates[coinMap.get('BTC')!]['usd'];
+        let btcPrice = rates['bitcoin']['usd'];
 
         const rows = this.aggAllAccounts();
         const tokens = this.aggAllTokens();
@@ -335,8 +342,7 @@ export class Helper {
             this.print(blockchain.color, `|${blockchain.chain}|${accName}|${blockchain.token}|${balance}|${price}|${amount}`);
             tokens.filter(t => t['name'] === accName).forEach(t => {
                 const coinStr = coinMap.get(t['symbol']);
-                // support BTC, others are stable coin, so always 1
-                const tokenPrice = coinStr ? rates[coinStr]['usd'] : 1;
+                const tokenPrice = coinStr ? rates[coinStr]['usd'] : 0;
                 const tokenAmount = (t['balance'] * tokenPrice).toFixed(2);
                 total += Number(tokenAmount);
                 this.print(blockchain.color, `|${blockchain.chain}|${accName}|${t['symbol']}|${t['balance']}|${tokenPrice}|${tokenAmount}`);
