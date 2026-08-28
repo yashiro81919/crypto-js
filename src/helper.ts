@@ -306,7 +306,6 @@ export class Helper {
         const coinMap = new Map<string, string>();
         coinMap.set('BTC', 'bitcoin');
         coinMap.set('BCH', 'bitcoin-cash');
-        coinMap.set('BSV', 'bitcoin-cash-sv');
         coinMap.set('LTC', 'litecoin');
         coinMap.set('DASH', 'dash');
         coinMap.set('DOGE', 'dogecoin');
@@ -320,6 +319,7 @@ export class Helper {
         coinMap.set('USDT', 'tether');
         coinMap.set('USDC', 'usd-coin');
         coinMap.set('USDS', 'usds');
+        coinMap.set('USDD', 'usdd');
 
         const coinIds = [...coinMap.values()];
 

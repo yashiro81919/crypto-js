@@ -17,7 +17,8 @@ export class Tron implements Blockchain {
     private suns = 10n ** 6n;
     private supportedTokens = [
         { name: 'USDT', contract: 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t', decimals: 10n ** 6n },
-        { name: 'BTC', contract: 'TN3W4H6rK2ce4vX9YnFQHwKENnHjoxb3m9', decimals: 10n ** 8n }
+        { name: 'BTC', contract: 'TN3W4H6rK2ce4vX9YnFQHwKENnHjoxb3m9', decimals: 10n ** 8n },
+        { name: 'USDD', contract: 'TXDk8mbtRbXeYuMNS83CfKPaYYT8XWv9Hz', decimals: 10n ** 18n }
     ];
 
     constructor(helper: Helper) {
