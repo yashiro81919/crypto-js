@@ -17,9 +17,9 @@ import { Polygon } from './chain/polygon';
 import { Litecoin } from './chain/litecoin';
 import { Monero } from './chain/monero';
 import { Dash } from './chain/dash';
-import { DigiByte } from './chain/digi-byte';
 import { Tron } from './chain/tron';
 import { HyperEvm } from './chain/hyper-evm';
+import { Zcash } from './chain/zcash';
 
 export class Helper {
 
@@ -41,7 +41,7 @@ export class Helper {
         this.chainRegistry.push(new BitcoinCash(this));
         this.chainRegistry.push(new EthereumClassic(this));
         this.chainRegistry.push(new Dash(this));
-        this.chainRegistry.push(new DigiByte(this));
+        this.chainRegistry.push(new Zcash(this));
         this.chainRegistry.push(new Monero(this));
         this.chainRegistry.push(new Tron(this));
     }
@@ -309,7 +309,7 @@ export class Helper {
         coinMap.set('LTC', 'litecoin');
         coinMap.set('DASH', 'dash');
         coinMap.set('DOGE', 'dogecoin');
-        coinMap.set('DGB', 'digibyte');
+        coinMap.set('ZEC', 'zcash');
         coinMap.set('ETH', 'ethereum');
         coinMap.set('ETC', 'ethereum-classic');
         coinMap.set('POL', 'polygon-ecosystem-token');

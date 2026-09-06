@@ -17,7 +17,7 @@ export abstract class BitcoinBase implements Blockchain {
     helper: Helper;
 
     abstract unit: string;
-    private satoshi = 10n ** 8n;
+    satoshi = 10n ** 8n;
 
     constructor(helper: Helper) {
         this.helper = helper;
@@ -556,5 +556,5 @@ export abstract class BitcoinBase implements Blockchain {
         preimage = this.helper.hash256(preimage);
 
         return Buffer.from(preimage, 'hex');
-    }    
+    }
 }
