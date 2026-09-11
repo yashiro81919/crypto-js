@@ -16,7 +16,7 @@ export class EthereumClassic extends EthereumBase {
 
     supportedTokens : { name: string, contract: string }[] = [];
 
-    rpcURL = 'https://etc.rivet.link';
+    rpcURL = 'https://rpc.mordor.etccooperative.org';
 
     async sign(tx: any): Promise<void> {
         super.sign155(tx, 61n);

@@ -17,7 +17,7 @@ export abstract class BitcoinBase implements Blockchain {
     helper: Helper;
 
     abstract unit: string;
-    satoshi = 10n ** 8n;
+    private satoshi = 10n ** 8n;
 
     constructor(helper: Helper) {
         this.helper = helper;
