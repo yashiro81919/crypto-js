@@ -75,7 +75,8 @@ async function managePortfolio(): Promise<void> {
     const step = await select({
         message: 'Choose your action: ', choices: [
             { value: 0, name: 'check total balance' },
-            { value: 1, name: 'update cost' }
+            { value: 1, name: 'update cost' },
+            { value: 2, name: 'update xmr' }
         ]
     });
 
@@ -96,6 +97,14 @@ async function managePortfolio(): Promise<void> {
 
         const currCost = helper.getCost();
         helper.print('255', `Total Cost: ${currCost}`);
+    } else if (step === 2) {
+        const xmr = helper.getXmr();
+
+        const newXmr = await input({ message: `Type new xmr: `, default: xmr.toString(), validate: helper.isFloat });
+        helper.updateXmr(Number(newXmr));
+
+        const currXmr = helper.getXmr();
+        helper.print('255', `Total XMR: ${currXmr}`);       
     }
 }
 

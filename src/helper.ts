@@ -28,6 +28,7 @@ export class Helper {
     TX_FILE = 'tx';
     SIG_TX_FILE = 'sigtx';
     COST_NAME = 'cost';
+    XMR_NAME = 'xmr';
     db!: Database;
 
     constructor() {
@@ -129,23 +130,37 @@ export class Helper {
     }
 
     getCost(): number {
+        return this.getSpecialValue(this.COST_NAME);
+    }
+
+    getXmr(): number {
+        return this.getSpecialValue(this.XMR_NAME);
+    }
+
+    private getSpecialValue(name: string) : number {
         const stmt = this.db.prepare('select balance from t_address where name = ?');
-        const obj = stmt.get(this.COST_NAME) as { balance: number };
-        let cost: number;
+        const obj = stmt.get(name) as { balance: number };
+        let value: number;
         if (!obj) {
             const stmtInsert = this.db.prepare('insert into t_address (name, idx, balance) values (?, ?, ?)');
-            stmtInsert.run(this.COST_NAME, 0, 0);
-            cost = 0;
+            stmtInsert.run(name, 0, 0);
+            value = 0;
         } else {
-            cost = obj['balance'];
+            value = obj['balance'];
         }
-        return Number(cost);
+        return Number(value);
     }
 
     updateCost(value: number, append: boolean): void {
         const sql = append ? 'update t_address set balance = balance + ? where name = ?' : 'update t_address set balance = ? where name = ?';
         const stmt = this.db.prepare(sql);
         stmt.run(value, this.COST_NAME);
+    }
+
+    updateXmr(value: number): void {
+        const sql = 'update t_address set balance = ? where name = ?';
+        const stmt = this.db.prepare(sql);
+        stmt.run(value, this.XMR_NAME);
     }
 
     getUsingAddresses(accountName: string): any {
@@ -325,6 +340,8 @@ export class Helper {
         let btcPrice = rates['bitcoin']['usd'];
 
         const rows = this.aggAllAccounts();
+        const xmr = this.getXmr();
+        rows.push({'coin_type': '128', 'name': 'xmr', balance: xmr});
         const tokens = this.aggAllTokens();
         console.log(`-----------Total Assets-------------------`);
         rows.forEach(row => {
