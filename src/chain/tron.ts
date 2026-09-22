@@ -47,6 +47,7 @@ export class Tron implements Blockchain {
         this.helper.print(this.color, `|${index}|${address}|${this.helper.bigIntDivide(addr.balance, this.suns)}`);
 
         this.helper.print(this.color, `---------------------${this.chain} TRC20---------------------`);
+        this.helper.clearToken(accountName, index);
         addr.tokens.forEach((token: { address: string; value: bigint; unit: bigint; name: string; }) => {
             this.helper.updateToken(accountName, index, token.address, this.helper.bigIntDivide(token.value, token.unit), token.name);
             this.helper.print(this.color, `|${token.name}|${token.address}|${this.helper.bigIntDivide(token.value, token.unit)}`);
