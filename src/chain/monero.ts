@@ -147,6 +147,7 @@ export class Monero implements Blockchain {
         const publicSpendKey = this.getPublicKey(privateSpendKey);
         const publicViewKey = this.getPublicKey(privateViewKey);
         const address = this.generateMoneroAddress(publicSpendKey, publicViewKey);
+        const subAddress = this.generateMoneroSubAddress(privateViewKey, publicSpendKey, publicViewKey, 0 ,10);
         const mnemonic = this.generateMnemonic(privateSpendKey);
 
         detail += `BIP39 Private Key: ${bip39Pk}\n`;
@@ -162,19 +163,19 @@ export class Monero implements Blockchain {
     }
 
     async showAddressDetail(xpub: BIP32Interface, accountName: string, index: string): Promise<void> {
-        console.log('Not support yet');
+        console.log('Not support');
     }
 
     async showUsingAddresses(xpub: BIP32Interface, accountName: string): Promise<void> {
-        console.log('Not support yet');
+        console.log('Not support');
     }
 
     async createTx(): Promise<void> {
-        console.log('Not support yet');
+        console.log('Not support');
     }
 
     async sign(tx: any): Promise<void> {
-        console.log('Not support yet');
+        console.log('Not support');
     }
 
     private scReduce32(seedHex: string): string {
@@ -218,7 +219,7 @@ export class Monero implements Blockchain {
         const minor = this.helper.hexToLE(index.toString(16).padStart(8, '0'));
         const data = subAddr + a + major + minor;
         const mHash = keccak_256(Buffer.from(data, 'hex'));
-        const m = BigInt('0x' + Buffer.from(mHash).toString('hex')) % ed25519.CURVE.n;
+        const m = BigInt('0x' + this.helper.hexToLE(Buffer.from(mHash).toString('hex'))) % ed25519.CURVE.n;
 
         // 2. Derive sub-spend key: sub_spend = publicSpendKey + m * G
         const mG = ed25519.Point.BASE.multiply(m);
@@ -226,7 +227,7 @@ export class Monero implements Blockchain {
         const subSpendKey = subSpendPoint.toHex();
 
         // 3. Derive sub-view key: private view key * sub-spend key
-        const privateViewKeyScalar = BigInt('0x' + privateViewKey) % ed25519.CURVE.n;
+        const privateViewKeyScalar = BigInt('0x' + this.helper.hexToLE(privateViewKey)) % ed25519.CURVE.n;
         const derivedViewPoint = subSpendPoint.multiply(privateViewKeyScalar);
         const subViewKey = derivedViewPoint.toHex();
 

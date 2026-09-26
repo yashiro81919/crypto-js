@@ -77,11 +77,11 @@ export class Tron implements Blockchain {
     }
 
     createTx(): void {
-        console.log('Not support yet');
+        console.log('Not support');
     }
 
     sign(tx: any): void {
-        console.log('Not support yet');
+        console.log('Not support');
     }
 
     private getTronAddress(publicKey: Uint8Array): string {
