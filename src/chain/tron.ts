@@ -24,18 +24,25 @@ export class Tron implements Blockchain {
         this.helper = helper;
     }
 
-    showKeyInfo(root: BIP32Interface, index: string): void {
+    showKeyInfo(root: BIP32Interface, index: string): Map<string, string> {
         const child = root.derivePath(`m/${this.purpose}'/${this.coin}'/${this.account}'/${this.change}/${index}`);
 
         let detail = `-----------m/${this.purpose}'/${this.coin}'/${this.account}'/${this.change}/${index}-------------------\n`;
 
-        detail += `Private Key: ${child.privateKey?.toString('hex')}\n`;
-        detail += `Public Key: ${child.publicKey.toString('hex')}\n`;
+        const pk = child.privateKey?.toString('hex')!;
         const fullPubKey = this.helper.decompressPublicKey(child.publicKey);
-        detail += `Address: ${this.getTronAddress(fullPubKey)}\n`;
+        const address = this.getTronAddress(fullPubKey);        
+
+        detail += `Private Key: ${pk}\n`;
+        detail += `Public Key: ${child.publicKey.toString('hex')}\n`;
+        detail += `Address: ${address}\n`;
         detail += '------------------------------------------------\n';
 
         this.helper.print(this.color, detail);
+
+        const keyMap = new Map<string, string>();
+        keyMap.set(address, pk);
+        return keyMap;          
     }
 
     async showAddressDetail(xpub: BIP32Interface, accountName: string, index: string): Promise<void> {
@@ -80,7 +87,7 @@ export class Tron implements Blockchain {
         console.log('Not support');
     }
 
-    sign(tx: any): void {
+    sign(tx: any, keyMap: Map<string, string>): void {
         console.log('Not support');
     }
 

@@ -20,7 +20,7 @@ export class HyperEvm extends EthereumBase {
 
     rpcURL = 'https://rpc.hyperliquid.xyz/evm';
 
-    async sign(tx: any): Promise<void> {
-        super.sign1559(tx, 999n);
+    async sign(tx: any, keyMap: Map<string, string>): Promise<void> {
+        super.sign1559(tx, 999n, keyMap);
     }
 }

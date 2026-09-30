@@ -136,7 +136,7 @@ export class Monero implements Blockchain {
         this.helper = helper;
     }
 
-    async showKeyInfo(root: BIP32Interface, index: string): Promise<void> {
+    showKeyInfo(root: BIP32Interface, index: string): Map<string, string> {
         const child = root.derivePath(`m/${this.purpose}'/${this.coin}'/${this.account}'/${this.change}/${index}`);
 
         let detail = `-----------m/${this.purpose}'/${this.coin}'/${this.account}'/${this.change}/${index}-------------------\n`;
@@ -160,6 +160,10 @@ export class Monero implements Blockchain {
         detail += '------------------------------------------------\n';
 
         this.helper.print(this.color, detail);
+
+        const keyMap = new Map<string, string>();
+        keyMap.set(address, privateSpendKey);
+        return keyMap;        
     }
 
     async showAddressDetail(xpub: BIP32Interface, accountName: string, index: string): Promise<void> {
@@ -174,7 +178,7 @@ export class Monero implements Blockchain {
         console.log('Not support');
     }
 
-    async sign(tx: any): Promise<void> {
+    async sign(tx: any, keyMap: Map<string, string>): Promise<void> {
         console.log('Not support');
     }
 

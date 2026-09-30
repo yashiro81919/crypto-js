@@ -8,9 +8,9 @@ export interface Blockchain {
     account: string;
     change: string;
     color: string;
-    showKeyInfo(root: BIP32Interface, index: string): void;
+    showKeyInfo(root: BIP32Interface, index: string): Map<string, string>;
     showAddressDetail(xpub: BIP32Interface, accountName: string, index: string): void;
     showUsingAddresses(xpub: BIP32Interface, accountName: string): void;
     createTx(): void;
-    sign(tx: any): void;
+    sign(tx: any, keyMap: Map<string, string>): void;
 }

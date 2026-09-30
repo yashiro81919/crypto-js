@@ -17,9 +17,19 @@ const bip32 = BIP32Factory(ecc);
 const seedFilePath = 'seed';
 const newSeedfilePath = 'new_seed';
 const masterPublicFilePath = 'public';
+const privateKeysFilePath = 'private';
 let blockchain: Blockchain;
 let mnemonic: string;
 let helper: Helper;
+
+async function fileExists(path: string): Promise<boolean> {
+    try {
+        await fs.access(path);
+        return true;
+    } catch {
+        return false;
+    }
+}
 
 async function getKey(): Promise<BIP32Interface> {
     const pass = await password({ message: '25th word: ', mask: '*' });
@@ -33,7 +43,17 @@ async function getKey(): Promise<BIP32Interface> {
 
 async function searchIndex(root: BIP32Interface): Promise<void> {
     const index = await input({ message: 'Index: ', required: true, validate: helper.isInteger });
-    await blockchain.showKeyInfo(root, index);
+    const map = blockchain.showKeyInfo(root, index);
+    // check and generate the private file
+    let mergedMap;
+    if (await fileExists(privateKeysFilePath)) {
+        const data = await fs.readFile(privateKeysFilePath, 'utf8');
+        const keyMap = new Map<string, string>(Object.entries(JSON.parse(data)));
+        mergedMap = new Map([...keyMap, ...map]);
+    } else {
+        mergedMap = map;
+    }
+    fs.writeFile(privateKeysFilePath, JSON.stringify(Object.fromEntries(mergedMap)), 'utf8');
 }
 
 async function changeAccount(): Promise<BIP32Interface> {
@@ -85,14 +105,18 @@ async function account(): Promise<void> {
 
 // this script should be deployed on offline device for signing the transaction with your private key
 // make sure a file named "tx" has been put in the same folder which includes the transaction data created in online devices
+// check private key will generate a file named "private" in the same folder
 async function sign(): Promise<void> {
-    const data = await fs.readFile(helper.TX_FILE, 'utf8');
+    let data = await fs.readFile(helper.TX_FILE, 'utf8');
     const tx = JSON.parse(data);
+    data = await fs.readFile(privateKeysFilePath, 'utf8');
+    const keyMap = new Map<string, string>(Object.entries(JSON.parse(data)));
     const blockchain = helper.getBlockchain(tx['coin']);
     console.log("----------------------------------");
     console.log(`Current Blockchain is: [${blockchain.chain}]`);
     console.log("----------------------------------");
-    blockchain.sign(tx);
+    blockchain.sign(tx, keyMap);
+    fs.unlink(privateKeysFilePath);
 }
 
 async function main(): Promise<void> {

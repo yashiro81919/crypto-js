@@ -27,20 +27,27 @@ export abstract class EthereumBase implements Blockchain {
 
     abstract supportedTokens: any[];
     abstract rpcURL: string;
-    abstract sign(tx: any): void;    
+    abstract sign(tx: any, keyMap: Map<string, string>): void;    
 
-    showKeyInfo(root: BIP32Interface, index: string): void {
+    showKeyInfo(root: BIP32Interface, index: string): Map<string, string> {
         const child = root.derivePath(`m/${this.purpose}'/${this.coin}'/${this.account}'/${this.change}/${index}`);
 
         let detail = `-----------m/${this.purpose}'/${this.coin}'/${this.account}'/${this.change}/${index}-------------------\n`;
 
-        detail += `Private Key: 0x${child.privateKey?.toString('hex')}\n`;
-        detail += `Public Key: 0x${child.publicKey.toString('hex')}\n`;
+        const pk = `0x${child.privateKey?.toString('hex')}`;
         const fullPubKey = this.helper.decompressPublicKey(child.publicKey);
-        detail += `Address: ${this.getEthereumAddress(fullPubKey)}\n`;
+        const address = this.getEthereumAddress(fullPubKey);        
+
+        detail += `Private Key: ${pk}\n`;
+        detail += `Public Key: 0x${child.publicKey.toString('hex')}\n`;
+        detail += `Address: ${address}\n`;
         detail += '------------------------------------------------\n';
 
         this.helper.print(this.color, detail);
+
+        const keyMap = new Map<string, string>();
+        keyMap.set(address, pk);
+        return keyMap;         
     }
 
     async showAddressDetail(xpub: BIP32Interface, accountName: string, index: string): Promise<void> {
@@ -145,7 +152,7 @@ export abstract class EthereumBase implements Blockchain {
         }
     }
 
-    async sign155(tx: any, chainId: bigint): Promise<void> {
+    async sign155(tx: any, chainId: bigint, keyMap: Map<string, string>): Promise<void> {
         const gas = this.calcGas(tx);
         const feeW = BigInt(gas) * BigInt(tx['fee']);
 
@@ -154,7 +161,11 @@ export abstract class EthereumBase implements Blockchain {
         console.log(`gas: ${gas}`);
         console.log('----------------------------------');
 
-        const pk = await password({ message: `Type private key for address [${tx.input}]: `, mask: '*' });
+        const pk = keyMap.get(tx.input);
+        if (!pk) {
+            console.log(`Private Key not found`);
+            return;
+        }        
 
         let to: string;
         let value: bigint;
@@ -211,7 +222,7 @@ export abstract class EthereumBase implements Blockchain {
         console.log(raw);
     }    
     
-    async sign1559(tx: any, chainId: bigint): Promise<void> {
+    async sign1559(tx: any, chainId: bigint, keyMap: Map<string, string>): Promise<void> {
         const gas = this.calcGas(tx);
         const feeW = BigInt(gas) * BigInt(tx['fee']);
 
@@ -220,8 +231,12 @@ export abstract class EthereumBase implements Blockchain {
         console.log(`gas: ${gas}`);
         console.log('----------------------------------');
 
-        const pk = await password({ message: `Type private key for address [${tx.input}]: `, mask: '*' });
-
+        const pk = keyMap.get(tx.input);
+        if (!pk) {
+            console.log(`Private Key not found`);
+            return;
+        }        
+        
         let to: string;
         let value: bigint;
         let txData: Uint8Array;

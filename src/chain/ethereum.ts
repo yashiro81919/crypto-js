@@ -23,7 +23,7 @@ export class Ethereum extends EthereumBase {
 
     rpcURL = 'https://ethereum.publicnode.com';
 
-    async sign(tx: any): Promise<void> {
-        super.sign1559(tx, 1n);
+    async sign(tx: any, keyMap: Map<string, string>): Promise<void> {
+        super.sign1559(tx, 1n, keyMap);
     }
 }

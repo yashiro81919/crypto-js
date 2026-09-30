@@ -52,8 +52,8 @@ export class Litecoin extends BitcoinBase {
         return resp.data['fastestFee'];
     }
 
-    async sign(tx: any): Promise<void> {
-        super.signSigwit(tx);
+    async sign(tx: any, keyMap: Map<string, string>): Promise<void> {
+        super.signSigwit(tx, keyMap);
     }
 
     isLegacyAddress(address: string): boolean {

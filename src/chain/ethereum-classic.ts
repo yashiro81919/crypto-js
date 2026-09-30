@@ -18,7 +18,7 @@ export class EthereumClassic extends EthereumBase {
 
     rpcURL = 'https://rpc.mordor.etccooperative.org';
 
-    async sign(tx: any): Promise<void> {
-        super.sign155(tx, 61n);
+    async sign(tx: any, keyMap: Map<string, string>): Promise<void> {
+        super.sign155(tx, 61n, keyMap);
     }    
 }

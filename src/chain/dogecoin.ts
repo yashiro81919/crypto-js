@@ -52,8 +52,8 @@ export class Dogecoin extends BitcoinBase {
         return resp.data['low_fee_per_kb'] / 1000;
     }
 
-    async sign(tx: any): Promise<void> {
-        super.signLegacy(tx);
+    async sign(tx: any, keyMap: Map<string, string>): Promise<void> {
+        super.signLegacy(tx, keyMap);
     }
 
     isLegacyAddress(address: string): boolean {

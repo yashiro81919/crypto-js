@@ -22,7 +22,7 @@ export class Polygon extends EthereumBase {
 
     rpcURL = 'https://polygon-bor-rpc.publicnode.com';
 
-    async sign(tx: any): Promise<void> {
-        super.sign1559(tx, 137n);
+    async sign(tx: any, keyMap: Map<string, string>): Promise<void> {
+        super.sign1559(tx, 137n, keyMap);
     }    
 }

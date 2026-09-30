@@ -48,8 +48,8 @@ export class BitcoinCash extends BitcoinBase {
         return 1;
     }
 
-    async sign(tx: any): Promise<void> {
-        super.signCash(tx);
+    async sign(tx: any, keyMap: Map<string, string>): Promise<void> {
+        super.signCash(tx, keyMap);
     }
 
     isLegacyAddress(address: string): boolean {

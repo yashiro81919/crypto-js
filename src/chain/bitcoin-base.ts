@@ -28,21 +28,28 @@ export abstract class BitcoinBase implements Blockchain {
     abstract getAddrDetail(address: string): Promise<any>;
     abstract getUtxos(address: string): Promise<any[]>;
     abstract getFee(): Promise<number>;
-    abstract sign(tx: any): void;    
+    abstract sign(tx: any, keyMap: Map<string, string>): void;    
     abstract isLegacyAddress(address: string): boolean;
     
-    showKeyInfo(root: BIP32Interface, index: string): void {
+    showKeyInfo(root: BIP32Interface, index: string): Map<string, string> {
         const child = root.derivePath(`m/${this.purpose}'/${this.coin}'/${this.account}'/${this.change}/${index}`);
 
         let detail = `-----------m/${this.purpose}'/${this.coin}'/${this.account}'/${this.change}/${index}-------------------\n`;
 
-        detail += `Private Key: ${child.privateKey?.toString('hex')}\n`;
+        const pk = child.privateKey?.toString('hex')!;
+        const address = this.getAddress(child);
+
+        detail += `Private Key: ${pk}\n`;
         detail += `Public Key: ${child.publicKey.toString('hex')}\n`;
-        detail += `Address: ${this.getAddress(child)}\n`;
+        detail += `Address: ${address}\n`;
         detail += `WIF: ${this.getWIF(child)}\n`;
         detail += '------------------------------------------------\n';
 
         this.helper.print(this.color, detail);
+
+        const keyMap = new Map<string, string>();
+        keyMap.set(address, pk);
+        return keyMap;        
     };
 
     async showAddressDetail(xpub: BIP32Interface, accountName: string, index: string): Promise<void> {
@@ -176,7 +183,7 @@ export abstract class BitcoinBase implements Blockchain {
         }
     }
 
-    async signLegacy(tx: any): Promise<void> {
+    async signLegacy(tx: any, keyMap: Map<string, string>): Promise<void> {
         const size = this.calcLegacySize(tx);
         const fee = Math.ceil(size * tx['fee']); // calculated fee
 
@@ -190,13 +197,6 @@ export abstract class BitcoinBase implements Blockchain {
         const addresses = new Set<string>();
         for (const addr of tx['inputs']) {
             addresses.add(addr['address']);
-        }
-
-        // collect pk and associated to address
-        const keyMap = new Map<string, string>();
-        for (const address of addresses) {
-            const pk = await password({ message: `Type private key for address [${address}]: `, mask: '*' });
-            keyMap.set(address, pk);
         }
 
         let raw = '';
@@ -232,7 +232,11 @@ export abstract class BitcoinBase implements Blockchain {
         // calculate and update signature part of tx
         const preimage = raw; // clone the current raw string
         for (const input of tx['inputs']) {
-            const privateKey = keyMap.get(input['address'])!;
+            const privateKey = keyMap.get(input['address']);
+            if (!privateKey) {
+                console.log(`Private Key not found`);
+                return;
+            }
 
             const rawSignature = secp256k1.sign(this.getPreimageLagacy(preimage, input), privateKey, { lowS: true });
             const signature = `${rawSignature.toDERHex()}01`; // DER Sign + SIGHASH_ALL (0x01)
@@ -251,7 +255,7 @@ export abstract class BitcoinBase implements Blockchain {
         console.log(raw);
     }    
     
-    async signSigwit(tx: any): Promise<void> {
+    async signSigwit(tx: any, keyMap: Map<string, string>): Promise<void> {
         const vSize = this.calcSigwitVSize(tx);
         const fee = Math.ceil(vSize * tx['fee']); // calculated fee
 
@@ -265,13 +269,6 @@ export abstract class BitcoinBase implements Blockchain {
         const addresses = new Set<string>();
         for (const addr of tx['inputs']) {
             addresses.add(addr['address']);
-        }
-
-        // collect pk and associated to address
-        const keyMap = new Map<string, string>();
-        for (const address of addresses) {
-            const pk = await password({ message: `Type private key for address [${address}]: `, mask: '*' });
-            keyMap.set(address, pk);
         }
 
         let raw = '';
@@ -314,7 +311,11 @@ export abstract class BitcoinBase implements Blockchain {
 
         // witness part
         for (const input of tx['inputs']) {
-            const privateKey = keyMap.get(input['address'])!;
+            const privateKey = keyMap.get(input['address']);
+            if (!privateKey) {
+                console.log(`Private Key not found`);
+                return;
+            }            
 
             raw += '02'; // stackitems
             const rawSignature = secp256k1.sign(this.getPreimage(version, inData, outData, seqs, sequence, locktime, input), privateKey, { lowS: true });
@@ -334,7 +335,7 @@ export abstract class BitcoinBase implements Blockchain {
         console.log(raw);
     }
 
-    async signCash(tx: any): Promise<void> {
+    async signCash(tx: any, keyMap: Map<string, string>): Promise<void> {
         const size = this.calcLegacySize(tx);
         const fee = Math.ceil(size * tx['fee']); // calculated fee
 
@@ -348,13 +349,6 @@ export abstract class BitcoinBase implements Blockchain {
         const addresses = new Set<string>();
         for (const addr of tx['inputs']) {
             addresses.add(addr['address']);
-        }
-
-        // collect pk and associated to address
-        const keyMap = new Map<string, string>();
-        for (const address of addresses) {
-            const pk = await password({ message: `Type private key for address [${address}]: `, mask: '*' });
-            keyMap.set(address, pk);
         }
 
         let raw = '';
@@ -397,7 +391,11 @@ export abstract class BitcoinBase implements Blockchain {
 
         // calculate and update signature part of tx
         for (const input of tx['inputs']) {
-            const privateKey = keyMap.get(input['address'])!;
+            const privateKey = keyMap.get(input['address']);
+            if (!privateKey) {
+                console.log(`Private Key not found`);
+                return;
+            }
 
             const rawSignature = secp256k1.sign(this.getPreimageCash(version, inData, outData, seqs, sequence, locktime, input), privateKey, { lowS: true });
             const signature = `${rawSignature.toDERHex()}41`; // DER Sign + SIGHASH_FORKID (0x41)
