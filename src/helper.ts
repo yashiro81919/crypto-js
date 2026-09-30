@@ -332,6 +332,8 @@ export class Helper {
         coinMap.set('HYPE', 'hyperliquid');
         coinMap.set('USDT', 'tether');
         coinMap.set('USDC', 'usd-coin');
+        coinMap.set('USDS', 'usds');
+        coinMap.set('DAI', 'dai');
 
         const coinIds = [...coinMap.values()];
 

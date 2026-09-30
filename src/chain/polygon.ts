@@ -16,7 +16,8 @@ export class Polygon extends EthereumBase {
 
     supportedTokens = [
         {name: 'USDT', contract: '0xc2132d05d31c914a87c6611c10748aeb04b58e8f'},
-        {name: 'USDC', contract: '0x3c499c542cef5e3811e1192ce70d8cc03d5c3359'}
+        {name: 'USDC', contract: '0x3c499c542cef5e3811e1192ce70d8cc03d5c3359'},
+        {name: 'DAI', contract: '0x8f3cf7ad23cd3cadbd9735aff958023239c6a063'}
     ];
 
     rpcURL = 'https://polygon-bor-rpc.publicnode.com';
