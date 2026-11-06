@@ -27,18 +27,20 @@ export class BitcoinCash extends BitcoinBase {
     }
 
     async getAddrDetail(address: string): Promise<any> {
-        const resp = await this.helper.api.get(`https://bch.fullstack.cash/v6/fulcrum/balance/${address}`);
-        const balance =  BigInt(resp.data['balance']['confirmed']);
-        const unBalance =  BigInt(resp.data['balance']['unconfirmed']);
+        const resp = await this.helper.api.get(`https://blockbook.bch.zelcore.io/api/v2/address/${address}`);
+        const balance =  BigInt(resp.data['balance']);
+        const unBalance =  BigInt(resp.data['unconfirmedBalance']);
+        const isSpent = resp.data['totalSent'] > 0;
+        const spentFlag = isSpent ? "✘" : "✔";        
 
-        return { balance: balance, unBalance: unBalance, spentFlag: "?" };
+        return { balance: balance, unBalance: unBalance, spentFlag: spentFlag };
     }
 
     async getUtxos(address: string): Promise<any[]> {
-        const resp = await this.helper.api.get(`https://bch.fullstack.cash/v6/fulcrum/utxos/${address}`);
+        const resp = await this.helper.api.get(`https://blockbook.bch.zelcore.io/api/v2/utxo/${address}`);
         const utxos : any[] = [];
-        resp.data['utxos'].forEach((utxo: any) => {
-            utxos.push({ txid: utxo['tx_hash'], vout: utxo['tx_pos'], value: utxo['value'] });
+        resp.data.forEach((utxo: any) => {
+            utxos.push({ txid: utxo['txid'], vout: utxo['vout'], value: utxo['value'] });
         });
 
         return utxos;
